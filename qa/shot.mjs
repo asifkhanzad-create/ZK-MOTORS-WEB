@@ -48,6 +48,18 @@ const SHOTS = [
   { name: "detail-portrait-prado", url: "/cars/toyota-land-cruiser-prado-tx-2017", width: 1440, height: 900, scrollY: 0 },
   { name: "detail-portrait-hilux", url: "/cars/toyota-hilux-revo-2020", width: 1440, height: 900, scrollY: 0 },
   { name: "detail-notfound", url: "/cars/not-a-real-car", width: 1440, height: 900, scrollY: 0 },
+  /* The four supporting pages built after Phase 4. */
+  { name: "about-desktop-top", url: "/about", width: 1440, height: 900, scrollY: 0 },
+  { name: "about-desktop-honesty", url: "/about", width: 1440, height: 900, scrollY: 1500 },
+  { name: "about-mobile-top", url: "/about", width: 375, height: 812, scrollY: 0 },
+  { name: "contact-desktop-top", url: "/contact", width: 1440, height: 900, scrollY: 0 },
+  { name: "contact-desktop-map", url: "/contact", width: 1440, height: 900, scrollY: 1150 },
+  { name: "contact-mobile-top", url: "/contact", width: 375, height: 812, scrollY: 0 },
+  { name: "privacy-desktop-top", url: "/privacy", width: 1440, height: 900, scrollY: 0 },
+  { name: "terms-mobile-top", url: "/terms", width: 375, height: 812, scrollY: 0 },
+  /* The sell form itself — the surface Phase 4 exists for. */
+  { name: "sell-desktop-form", url: "/sell-your-car", width: 1440, height: 900, scrollY: 700 },
+  { name: "sell-mobile-form", url: "/sell-your-car", width: 375, height: 812, scrollY: 620 },
 ];
 
 await mkdir(OUT, { recursive: true });

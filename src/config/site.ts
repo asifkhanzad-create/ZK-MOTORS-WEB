@@ -84,6 +84,128 @@ export const siteConfig = {
     "Hello ZK Motors, I would like to enquire about a vehicle.",
 
   /**
+   * About page.
+   *
+   * PLACEHOLDER copy. It is written to be true of any small used-car
+   * dealership, so it is safe to publish as-is — but it is not this client's
+   * own story, and it deliberately contains no founding date, no "years in
+   * business", no number of cars sold and no awards, because the site has no
+   * way to know any of those and inventing them is the fastest way to lose a
+   * customer standing in the showroom. Replace it with the real account;
+   * `aboutIsPlaceholder` below shows a notice until you do.
+   */
+  about: {
+    intro: [
+      "ZK Motors is a used-car dealership based in Wah Cantt. It sells cars from its own lot, buys cars outright, and takes cars in exchange.",
+      "Most people arrive here having seen something on this website, so the aim is simple: put the useful facts in front of you before you pick up the phone. Model year, mileage, transmission, fuel type and asking price are on every listing. What has sold is marked as sold rather than quietly removed.",
+    ],
+
+    /** The three things the business actually does. */
+    whatWeDo: [
+      {
+        title: "Sell used cars",
+        body: "Cars on the lot, listed with the figures that decide whether a car is worth a phone call.",
+      },
+      {
+        title: "Buy cars outright",
+        body: "Send the details and get a response during opening hours. Asking commits you to nothing.",
+      },
+      {
+        title: "Take cars in exchange",
+        body: "Put the value of your current car towards one on the lot. Both sides are agreed before any paperwork starts.",
+      },
+    ],
+
+    /**
+     * Deliberately a list of things the business does *not* claim.
+     *
+     * A used-car dealer saying plainly what it does not promise is more
+     * convincing than one promising everything, and it is the only version
+     * this website can honestly support — it has not inspected these cars, it
+     * does not know their history, and it cannot guarantee a price.
+     */
+    honesty: [
+      "We do not claim every car has been inspected. Ask what has been checked on the specific car you are looking at.",
+      "We do not publish accident or ownership history. Ask, and check the documents yourself before you buy.",
+      "Prices shown are asking prices, not fixed prices.",
+      "A car can sell before its listing is updated. Call to confirm it is still there.",
+    ],
+  },
+
+  /**
+   * The sell-your-car flow at `/sell-your-car`.
+   *
+   * All of this is editable copy, not logic — the page reads every word from
+   * here so the client can change it without touching a component.
+   *
+   * The answers deliberately promise nothing the business has not agreed to.
+   * There is no "best price guaranteed", no valuation figure, and no claim to
+   * inspect the car before quoting: the site cannot know any of that, and a
+   * used-car seller who over-promises here has to walk it back on the phone.
+   */
+  sell: {
+    /** Condition options for the seller's own car — not the inventory scale. */
+    conditions: ["Excellent", "Good", "Fair", "Needs work"],
+
+    /** Shown as a "have these ready" list beside the form. */
+    checklist: [
+      "The registration book, or the last transfer letter",
+      "Your CNIC and the car's registration number",
+      "Service records, if you have kept them",
+      "The price you have in mind, if you have one",
+    ],
+
+    /** The process, in order. Three is the whole process — do not pad it. */
+    steps: [
+      {
+        title: "Send the details",
+        body: "Fill in the form, or message the showroom on WhatsApp. Make, model year, mileage and condition are enough to start.",
+      },
+      {
+        title: "We come back with a figure",
+        body: "During opening hours you get a response based on what you have told us — no obligation, and nothing to sign.",
+      },
+      {
+        title: "Bring it in to finish",
+        body: "If the figure works for you, bring the car and the documents to the showroom. We confirm the price and complete the transfer.",
+      },
+    ],
+
+    /**
+     * Questions sellers actually ask. Answers must stay true to what the
+     * business does — several of them are phrased to avoid promising a figure
+     * or a turnaround the showroom has not committed to.
+     */
+    faq: [
+      {
+        question: "Do you buy cars outright, or only take exchanges?",
+        answer:
+          "Both. You can sell your car to us for cash, or put its value towards something already in the inventory.",
+      },
+      {
+        question: "How is the figure worked out?",
+        answer:
+          "From what you tell us — model year, mileage, condition, and how that model is moving at the time. Treat the first figure as an indication, not a final offer: it is confirmed once we have seen the car and the documents.",
+      },
+      {
+        question: "Do I have to bring the car to the showroom first?",
+        answer:
+          "No. Send the details and get a figure first. Most sellers only bring the car in once there is a number worth discussing.",
+      },
+      {
+        question: "My car is not the kind you usually stock. Is it still worth asking?",
+        answer:
+          "Yes. The inventory list is what we currently have for sale — it is not a limit on what we will look at.",
+      },
+      {
+        question: "How soon will I hear back?",
+        answer:
+          "During opening hours. Anything sent outside them is picked up on the next working day. The current hours are listed at the foot of every page.",
+      },
+    ],
+  },
+
+  /**
    * Shown on every vehicle detail page.
    *
    * These are the things a used-car buyer should ask about that this website
@@ -103,6 +225,16 @@ export const siteConfig = {
 } as const;
 
 export type SiteConfig = typeof siteConfig;
+
+/**
+ * Marks the About copy above as invented placeholder text.
+ *
+ * Same pattern as `inventoryIsPlaceholder` in `src/data/vehicles.ts`: while
+ * this is true the About page shows a notice saying the text is sample copy,
+ * so a placeholder can never quietly pass as the client's own history. Set it
+ * to false once the real account is written.
+ */
+export const aboutIsPlaceholder = true;
 
 /** Absolute site URL — used for metadata and structured data. */
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://zkmotors.pk";
@@ -132,8 +264,18 @@ export const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${
  * `/cars` and the vehicle detail routes under it (`/cars/{id}`) are both live
  * as of Phase 3. The `startsWith(`${route}/`)` check below covers every detail
  * route from the single `/cars` entry, so no per-vehicle entry is needed.
+ * `/sell-your-car` went live in Phase 4; `/about`, `/contact`, `/privacy` and
+ * `/terms` followed, which clears every link the navbar and footer point at.
  */
-export const liveRoutes: readonly string[] = ["/", "/cars"];
+export const liveRoutes: readonly string[] = [
+  "/",
+  "/cars",
+  "/sell-your-car",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+];
 
 export function shouldPrefetch(href: string): boolean {
   return liveRoutes.some(

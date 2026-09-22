@@ -20,8 +20,8 @@ change.
 | 1 | Homepage — 9 sections, design tokens, SEO, structured data | done |
 | 2 | `/cars` inventory page with URL-driven filtering and sorting | done |
 | 3 | Vehicle detail pages at `/cars/[id]` | **done** |
-| 4 | Sell-your-car flow (`/sell-your-car`) | **next, not started** |
-| 5 | Supabase backend, replacing the placeholder dataset | not started |
+| 4 | Sell-your-car flow (`/sell-your-car`) | **done** |
+| 5 | Supabase backend, replacing the placeholder dataset | next |
 | 6 | Admin dashboard | not started |
 
 **The user reviews each phase before the next one begins. Do not build ahead.**
@@ -32,8 +32,14 @@ sticky header became the floating glass-pill navbar the user supplied. See
 
 Known gaps as of the last session:
 
-- `/sell-your-car`, `/about` and `/contact` are in the nav and 404. Every
-  "Sell Your Car" CTA points at the first of those.
+- **The four previously-dead routes now ship**: `/about`, `/contact`, `/privacy`
+  and `/terms` were built after Phase 4. They were never in the phase plan —
+  they were linked from every page and all four 404ed, which is a trust problem
+  on a site whose job is to look credible. `qa/qa-sell.mjs` used to carry a
+  `knownUnbuilt` allowance for them; **that allowance is deleted**, and the scan
+  now asserts zero dead internal links site-wide. Do not reintroduce a whitelist.
+  `/privacy` and `/terms` are honest drafts, not legal advice, and both say so on
+  the page. `/about` is marked `aboutIsPlaceholder` in `src/config/site.ts`.
 - `src/data/vehicles.ts` holds 14 realistic placeholder vehicles. All 16 photos
   in `public/vehicles/` are free-licence stock standing in for real ones.
 - **`city-aspire.jpg` is a photograph of a Toyota Corolla GLi** — the boot badge
@@ -45,7 +51,12 @@ Known gaps as of the last session:
 - `VehicleGallery`'s multi-photo thumbnail rail has never run — every listing has
   exactly one photo, so `gallery` is empty everywhere.
 - Every business detail in `src/config/site.ts` is invented and marked
-  `PLACEHOLDER`.
+  `PLACEHOLDER`. **This is now load-bearing:** the phone number
+  `+92 300 000 0000` is what every WhatsApp CTA and the sell form's composed
+  message are built from, so a real number has to land before real customers do.
+- The navbar's current-page pill is `bone-50`, which contradicts the documented
+  "cobalt = nav active state" rule. It reads well, but it is an exception nobody
+  has signed off. Raise it.
 
 ## Non-negotiable conventions
 
@@ -170,6 +181,8 @@ npm run build && npm run start
 node qa/qa-nav.mjs       http://localhost:3000   # 62 assertions
 node qa/qa-inventory.mjs http://localhost:3000   # 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # 62 assertions
+node qa/qa-sell.mjs      http://localhost:3000   # 109 assertions
+node qa/probe-viewtransition.mjs http://localhost:3000   # 10 assertions
 ```
 
 The harnesses drive real Microsoft Edge via `playwright-core`
@@ -178,8 +191,64 @@ site-wide header — the capsule's contrast over a light band, the sticky toolba
 clearing it, the disclosure menu's keyboard behaviour, and where a nav click
 leaves the scroll position. `qa-inventory.mjs`
 covers URL-driven filtering and the mobile filter sheet; `qa-detail.mjs` covers
-the 14 vehicle pages. **Extend an existing harness rather than adding a fourth** —
+the 14 vehicle pages. **Extend an existing harness rather than adding a fifth** —
 one file per surface, each with a header comment saying what it covers.
+
+`qa-sell.mjs` also owns the **site-wide link scan**. It crawls every page, gathers
+each distinct internal `href`, requests it, and fails on any 404. It is the reason
+the four dead routes could not be forgotten; keep it at zero. It also covers the
+four supporting pages and the sell form across **six viewports each** — one `<h1>`,
+no skipped heading levels, alt text, a real meta description, valid JSON-LD, the
+honesty notices, and no horizontal overflow. A page that merely returns 200 fails
+those, which is the point.
+
+### The supporting pages
+
+`/about`, `/contact`, `/privacy` and `/terms` were built after Phase 4 because
+they were linked from every page and all four 404ed. Three things to know:
+
+- `/privacy` and `/terms` were **written from what the codebase actually does** —
+  the privacy page says there are no accounts, no cookies, no analytics and no
+  `localStorage` because a grep of `src/` confirms there are none. If a tracker is
+  ever added, that page becomes wrong and must be updated in the same commit.
+- Both render through one shared shell, `src/components/legal/LegalDocument.tsx`,
+  and both carry a visible "starting point, not legal advice" notice.
+- `/contact` reuses `src/components/ui/MapPlaceholder.tsx`, which was extracted
+  from `LocationContact.tsx` so the homepage and the contact page show one map,
+  not two copies that can drift.
+
+### The sell flow (Phase 4)
+
+`/sell-your-car` is the one page where the signal red carries the whole
+surface rather than marking a section — it is the selling path end to end, so
+the eyebrow, the step numbers and the primary action are all red. This is why
+`SectionHeading` grew an `accent` prop; without it the eyebrow was hardcoded
+cobalt and the page read as browsing.
+
+**There is no backend until Phase 5, so the form does not POST anywhere.**
+`ValuationForm` composes a WhatsApp message from what the visitor typed, opens
+`wa.me` from the submit handler, and shows a panel saying plainly that
+**nothing is sent until they press send in WhatsApp**. That honesty is load
+bearing: a form that looks like it submitted when it did not is worse than no
+form. `qa/qa-sell.mjs` asserts the confirmation never claims the details were
+sent, and that an invalid submit opens no window at all.
+
+Message composition lives in `sellVehicleMessage()` in `src/lib/whatsapp.ts`,
+not in the component — it sits with every other message the site sends, and it
+can be checked without rendering anything.
+
+Two smaller things worth keeping:
+
+- **Field names are plain (`name="make"`), ids are not.** `useId()` returns
+  characters such as `«` and `»`, which are not valid inside a CSS attribute
+  selector. Focus-the-first-error therefore reads `data-field`, which is on the
+  control from first render — an `[aria-invalid]` lookup would run *before*
+  React re-renders and find nothing. Plain `name` also lets browser autofill
+  recognise the name and phone inputs.
+- **The FAQ is native `<details>`/`<summary>`.** No JavaScript, keyboard
+  operable for free, announced correctly. The `FAQPage` JSON-LD mirrors the
+  rendered questions exactly; a mismatch between the two is what gets a site
+  penalised, and `qa/qa-sell.mjs` compares them element by element.
 
 ## Gotchas that will bite
 

@@ -33,6 +33,41 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.9,
     },
+    /* Phase 4. Sits just under the inventory: it is a primary business action
+       rather than a browsing page, but it is not the site's front door. */
+    {
+      url: `${siteUrl}/sell-your-car`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${siteUrl}/contact`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${siteUrl}/about`,
+      lastModified,
+      changeFrequency: "yearly",
+      priority: 0.6,
+    },
+    /* The legal pair is listed but ranked last on purpose. They are pages a
+       visitor should be able to find, not pages worth spending crawl budget
+       on ahead of the inventory. */
+    {
+      url: `${siteUrl}/privacy`,
+      lastModified,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${siteUrl}/terms`,
+      lastModified,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
     ...vehicles.map((vehicle) => ({
       url: `${siteUrl}/cars/${vehicle.id}`,
       lastModified,

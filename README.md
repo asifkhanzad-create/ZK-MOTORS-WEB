@@ -140,6 +140,30 @@ unchanged. Browsers without View Transitions support simply skip the animation. 
 is handled in `globals.css` — the existing `*` rule cannot reach `::view-transition-*`, because
 `*` matches elements, not pseudo-elements.
 
+### The sell flow
+
+`/sell-your-car` (Phase 4) is where the signal red carries the **whole page**
+rather than marking one section, because the entire page is the selling path.
+That is the reason `SectionHeading` has an `accent` prop.
+
+There is no backend until Phase 5, so the form does not POST anywhere:
+
+1. `ValuationForm` validates locally — required fields, a plausible model year,
+   a phone number with enough digits.
+2. `sellVehicleMessage()` (`src/lib/whatsapp.ts`) composes the enquiry.
+3. The submit handler opens `wa.me` with that message.
+
+The confirmation panel states plainly that **nothing is sent until the visitor
+presses send inside WhatsApp**, and offers the link by hand in case a pop-up
+blocker swallowed it. `qa/qa-sell.mjs` asserts the panel never claims the
+details were sent, and that an invalid submit opens no window at all — the
+failure mode being a form that looks like it submitted when it did not.
+
+The FAQ uses native `<details>`/`<summary>`: no JavaScript, keyboard operable
+for free. Its `FAQPage` structured data mirrors the rendered questions exactly,
+and the harness compares the two element by element — a mismatch between them
+is what search engines penalise.
+
 ### The two accents
 
 The palette uses **two** accent colours, and the rule matters more than the hues:
@@ -179,6 +203,10 @@ src/
     page.tsx            homepage — composes the nine sections
     cars/page.tsx       inventory page — reads searchParams, renders the grid
     cars/[id]/page.tsx  vehicle detail — prerendered per car, Car JSON-LD
+    sell-your-car/      Phase 4 — the sell/exchange flow, FAQ JSON-LD
+    about/              who we are + "what we do not claim", AboutPage JSON-LD
+    contact/            full details, areas covered, map, ContactPage JSON-LD
+    privacy/ terms/     legal drafts, both sharing one shell
     globals.css         DESIGN TOKENS: colours, type, radii, motion,
                         --spacing-nav (the header height everything offsets by)
     not-found.tsx       styled 404
@@ -193,11 +221,15 @@ src/
                         Testimonials, LocationContact
     inventory/          FilterControls, InventoryToolbar, MobileFilterSheet,
                         ActiveFilterChips, InventoryEmptyState
+    sell/               ValuationForm — Phase 4, composes a WhatsApp message
+                        instead of POSTing (no backend until Phase 5)
+    legal/              LegalDocument — the shared shell for /privacy and /terms
     vehicle/            VehicleGallery, SpecTable, EnquiryPanel,
                         BuyerChecklist, SimilarVehicles
     ui/                 Button, Container, SectionHeading, StatusBadge,
                         VehicleCard, SoldVehicleCard, VehicleImage,
-                        Reveal, SocialIcon, PageTransition (route cross-fade)
+                        Reveal, SocialIcon, PageTransition (route cross-fade),
+                        MapPlaceholder (shared by the homepage and /contact)
   config/site.ts        ALL BUSINESS DETAILS — phone, WhatsApp, address, hours
   data/vehicles.ts      SAMPLE INVENTORY (placeholder) + similar-car scoring
   data/testimonials.ts  PLACEHOLDER TESTIMONIALS
@@ -215,6 +247,7 @@ qa/
   qa-nav.mjs                 site-wide header harness; 62 assertions
   qa-inventory.mjs           Phase 2 harness; 47 assertions
   qa-detail.mjs              Phase 3 harness; 62 assertions
+  qa-sell.mjs                Phase 4 + supporting pages; 109 assertions
   measure-badge.mjs          clips a badge to its DOM box for the contrast script
   probe-404.mjs              one-off: which routes emit a React page error
   probe-header.mjs           one-off: header height + what overflows a viewport
@@ -234,7 +267,7 @@ Four layers, all of which must be green before calling a phase done:
 ```bash
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
-npm run build            # must list 22 prerendered routes, no errors
+npm run build            # must list 27 prerendered routes, no errors
 python scripts/verify_theme.py   # 32 contrast pairs read from globals.css
 ```
 
@@ -245,6 +278,7 @@ NODE_OPTIONS= npm run build && npm run start   # in one terminal
 node qa/qa-nav.mjs       http://localhost:3000   # header — 62 assertions
 node qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # Phase 3 — 62 assertions
+node qa/qa-sell.mjs      http://localhost:3000   # Phase 4 + the 4 supporting pages — 109 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only on route changes
 ```
 
@@ -353,12 +387,16 @@ cars with no close match (the Hilux pickup, the BMW), and never suggests a sold 
 
 - **Routes that don't exist yet.** `src/config/site.ts` exports `liveRoutes` and
   `shouldPrefetch()`. Next.js prefetches every `<Link>` in view, so linking to a route
-  that doesn't exist yet fires a burst of 404s. `/` and `/cars` are live, and the
+  that doesn't exist yet fires a burst of 404s. **Every route the site links to is now
+  live** — `/`, `/cars`, `/sell-your-car`, `/about`, `/contact`, `/privacy`, `/terms` — and the
   `startsWith('/cars/')` check covers every `/cars/{id}` detail route from that one entry.
   **As each new route ships, add it to `liveRoutes`.** That is the only change needed.
-- **`sitemap.ts`** lists `/`, `/cars` and every vehicle detail page. Add each new static
-  route as it ships; do not list filtered inventory URLs (they canonicalise to `/cars`).
-  Sold cars are included on purpose — see the comment in that file if you'd rather drop them.
+  The list being complete is enforced, not assumed: `qa/qa-sell.mjs` crawls every page and
+  fails on any internal link that 404s.
+- **`sitemap.ts`** lists `/`, `/cars`, every vehicle detail page and the four supporting
+  pages. Add each new static route as it ships; do not list filtered inventory URLs (they
+  canonicalise to `/cars`). Sold cars are included on purpose — see the comment in that file
+  if you'd rather drop them.
 - **The quick-search panel** on the homepage already emits `/cars?make=…&minPrice=…&year=…`.
   `parseFilters` handles that exact shape, including the single `year` param.
 - **Design tokens** are all in `src/app/globals.css` under `@theme`. Change a colour
@@ -372,8 +410,9 @@ cars with no close match (the Hilux pickup, the BMW), and never suggests a sold 
   when a vehicle's `gallery` array has entries, but every listing currently has exactly one
   photo, so only the single-photo state has ever run. Add a second photo to a `gallery`
   array and check it before trusting that path.
-- **Next up is the sell-your-car flow** (`/sell-your-car`), which every "Sell Your Car" CTA
-  already points at. That route is not in `liveRoutes`, so those links currently 404.
+- **Next up is the Supabase backend** (Phase 5), replacing `src/data/vehicles.ts`. It needs a
+  project, keys and schema decisions from the client before any code is worth writing — see
+  `AGENTS.md`. The Phase 6 admin dashboard sits behind it.
 
 ### 4. Testimonials — `src/data/testimonials.ts`
 
@@ -381,10 +420,12 @@ cars with no close match (the Hilux pickup, the BMW), and never suggests a sold 
 mistaken for real reviews. Replace with genuine feedback and set
 `testimonialsArePlaceholder = false` to remove the notice.
 
-### 5. Google Map — `src/components/home/LocationContact.tsx`
+### 5. Google Map — `src/components/ui/MapPlaceholder.tsx`
 
-A styled placeholder panel marks where the real embed goes. Replace the inner block with
-your Maps `<iframe>`; the surrounding layout does not need to change.
+A styled placeholder panel marks where the real embed goes. It lives in `ui/` rather than
+`home/` because both the homepage's `LocationContact` section and `/contact` render it, and
+two copies would drift. Replace the inner block with your Maps `<iframe>` once; the
+surrounding layout does not need to change.
 
 ### 6. Brand assets
 

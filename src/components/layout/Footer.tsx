@@ -154,9 +154,12 @@ export function Footer() {
                   Chat on WhatsApp
                 </a>
               ) : null}
+              {/* Was labelled "Get directions" while pointing at /contact,
+                  which promised the map and delivered a page. /contact does
+                  carry the directions link, so the label now says so. */}
               <Button href="/contact" variant="outline" size="md">
                 <Navigation aria-hidden="true" className="size-4" />
-                Get directions
+                Contact us
               </Button>
             </div>
           </div>

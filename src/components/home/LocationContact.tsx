@@ -2,6 +2,7 @@ import { Clock, MapPin, MessageCircle, Navigation, Phone } from "lucide-react";
 
 import { buttonClasses } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
+import { MapPlaceholder } from "@/components/ui/MapPlaceholder";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { siteConfig, directionsUrl } from "@/config/site";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
@@ -107,44 +108,9 @@ export function LocationContact() {
             </div>
           </div>
 
-          {/*
-            Map placeholder — sized and styled so it can be swapped for a
-            Google Maps <iframe> without touching the surrounding layout.
-          */}
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-ink-700 bg-ink-850 lg:aspect-auto lg:min-h-[26rem]">
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 opacity-40"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to right, rgba(255,255,255,0.055) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.055) 1px, transparent 1px)",
-                backgroundSize: "44px 44px",
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute left-1/2 top-0 h-full w-24 -translate-x-1/2 bg-accent-500/8"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute left-0 top-1/2 h-16 w-full -translate-y-1/2 bg-bone-50/5"
-            />
-
-            <div className="relative flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-              <span className="grid size-12 place-items-center rounded-full bg-accent-400 text-ink-950 shadow-[0_8px_24px_-6px_rgba(95,160,232,0.65)]">
-                <MapPin aria-hidden="true" className="size-6" />
-              </span>
-              <div className="flex flex-col gap-1">
-                <p className="font-display text-base font-semibold text-bone-50">
-                  {siteConfig.address.locality}, {siteConfig.address.region}
-                </p>
-                <p className="max-w-xs text-[0.8125rem] leading-relaxed text-muted-dark">
-                  Map placeholder — drop in the Google Maps embed for the
-                  showroom address here.
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Sizing lives here; the map's own drawing is in MapPlaceholder,
+              which /contact also uses. */}
+          <MapPlaceholder className="aspect-[4/3] lg:aspect-auto lg:min-h-[26rem]" />
         </div>
       </Container>
     </section>
