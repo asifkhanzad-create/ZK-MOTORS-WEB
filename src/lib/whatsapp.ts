@@ -25,3 +25,18 @@ export function vehicleEnquiryMessage(vehicle: {
 /** Enquiry message for someone selling or exchanging a car. */
 export const sellEnquiryMessage =
   "Hello ZK Motors, I would like to sell or exchange my car. Here are the details:";
+
+/**
+ * Enquiry for a car that has already sold.
+ *
+ * A sold listing still attracts messages, and the honest thing to ask for is
+ * comparable stock rather than pretending the car is available. Sending the
+ * "is it still available?" message about a sold car just wastes a round trip.
+ */
+export function soldVehicleEnquiryMessage(vehicle: {
+  make: string;
+  model: string;
+  year: number;
+}): string {
+  return `Hello ZK Motors, I saw the ${vehicle.year} ${vehicle.make} ${vehicle.model} on your site but it is marked sold. Do you have anything similar coming in?`;
+}

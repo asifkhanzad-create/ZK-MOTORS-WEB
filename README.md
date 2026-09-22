@@ -3,13 +3,13 @@
 Used-car dealership website for **ZK Motors**, Wah Cantt & Taxila, Punjab, Pakistan.
 
 **Phase 1 (complete): homepage.** **Phase 2 (complete): the `/cars` inventory page with
-URL-driven filtering and sorting.** Vehicle-detail pages, the sell-your-car flow, the
-Supabase backend and the admin dashboard are planned for later phases and are **not built
-yet**.
+URL-driven filtering and sorting.** **Phase 3 (complete): the `/cars/{id}` vehicle detail
+pages.** The site chrome was then replaced with a floating glass-pill navbar (see
+[The navbar](#the-navbar)). The sell-your-car flow, the Supabase backend and the admin
+dashboard are planned for later phases and are **not built yet**.
 
-> ⚠️ **Known gap:** vehicle cards link to `/cars/{id}`. Those detail pages are Phase 3 and
-> currently land on the styled 404, which explains the situation and points back at the
-> inventory. Nothing else is broken by this.
+> **All 14 detail pages are prerendered at build time** (`● SSG` in the build output). An
+> unknown slug renders the styled 404 rather than erroring.
 
 ---
 
@@ -79,8 +79,66 @@ Two consequences worth preserving:
 > **Layout trap:** the results toolbar is `sticky` and the mobile filter sheet renders
 > *inside* it. The toolbar therefore carries **no `backdrop-blur`** — any `backdrop-filter`
 > ancestor becomes the containing block for `position: fixed` descendants, which would clip
-> the sheet to the toolbar instead of the viewport. Same reason `MobileNav` is a sibling of
-> `<header>` rather than a child.
+> the sheet to the toolbar instead of the viewport. Same reason the navbar's dropped panel is
+> a *sibling* of the blurred capsule rather than a child of it.
+
+### The navbar
+
+`src/components/layout/Header.tsx` is a floating glass pill adapted from the CodeFronts
+"Pill Highlight Navigation Bar" demo (MIT; the source URL and the five deliberate departures
+are in the file header). One capsule at every width, a solid near-white pill marking the
+current page, and a card that drops out of the capsule below `lg`.
+
+Four things about it are load-bearing:
+
+- **The capsule carries an 85% `ink-950` scrim**, not the demo's `bg-white/6`. The demo sits
+  on a permanently dark page; this site alternates dark and light bands. Over a `bone-50`
+  section the demo's version measures **1.00:1** — the capsule and its labels both vanish.
+  Measured with the scrim in place: 10.6:1 for the wordmark and 8.1:1 for the links.
+- **The header is exactly 86px**, published as `--spacing-nav` in `globals.css`. The results
+  toolbar, the `/cars` filter rail and the detail-page enquiry panel all offset by
+  `top-nav` / `calc(var(--spacing-nav) + 1rem)` rather than by a literal, so the header can
+  change height in one place. `qa/qa-nav.mjs` asserts the rendered height at six viewports.
+- **The mobile menu is a real `<button>` disclosure** with `aria-expanded`, `aria-controls`,
+  Escape-to-close and focus return. The demo drives its menu from a checkbox and marks the
+  label `aria-hidden`, which hides the only way to open it from assistive tech.
+- **Nav clicks and scroll position are handled explicitly.** `globals.css` deliberately does
+  **not** set `html { scroll-behavior: smooth }`: that property also governs the router's
+  own scroll reset, which then animates and settles short — clicking "Cars" from the homepage
+  at `scrollY 2400` landed at **131**, part-way down the inventory. A nav link to the route
+  you are already on is handled by `handleNavClick`, which scrolls to the top smoothly and
+  honours `prefers-reduced-motion`. `qa/qa-nav.mjs` samples `scrollY` mid-flight, so a jump
+  cannot pass as an animation.
+
+The current-page pill is **near-white rather than the accent cobalt** — the one place the
+two-accent rule is deliberately not applied. On `/cars` the current pill sits inches from the
+cobalt "Find a Car" button and both point at `/cars`; two cobalt pills read as a mistake.
+
+### The page cross-fade
+
+A route change replaces the document, so there is nothing to *scroll* — the new page just
+appears at the top. `PageTransition` (`components/ui/PageTransition.tsx`) gives that swap a
+short cross-fade so navigation reads as continuous rather than abrupt.
+
+It is deliberately asymmetric:
+
+| Trigger | Fires on | Animation |
+|---|---|---|
+| `enter` / `exit` | Mount / unmount — a real route change | browser cross-fade |
+| `update` | A DOM mutation while mounted — every `/cars` filter click | **`none`** |
+| `share` | Named element morphs | **`none`** |
+
+The `update="none"` is the load-bearing part. `/cars` keeps its filter state in the URL, so a
+filter pill re-renders the page in place — an `update`. `cars/page.tsx` already carries a
+deliberate decision against animating that: *"fading the results in each time reads as flicker
+rather than polish."* `qa/probe-viewtransition.mjs` counts calls to `document.startViewTransition`
+and asserts route changes cross-fade while filter changes do not, so that decision cannot be
+undone by accident.
+
+The wrapper renders no DOM node and applies nothing server-side, so the prerendered HTML is
+unchanged. Browsers without View Transitions support simply skip the animation. `prefers-reduced-motion`
+is handled in `globals.css` — the existing `*` rule cannot reach `::view-transition-*`, because
+`*` matches elements, not pseudo-elements.
 
 ### The two accents
 
@@ -88,11 +146,12 @@ The palette uses **two** accent colours, and the rule matters more than the hues
 
 | Accent | Token | Used for |
 |---|---|---|
-| Cobalt blue | `accent-*` | The buying path — primary CTAs, eyebrows, focus rings, nav, icons |
+| Cobalt blue | `accent-*` | The buying path — primary CTAs, eyebrows, focus rings, icons |
 | Red | `signal-*` | The selling path and attention — the Sell/Exchange section, the hero's Sell CTA, the Reserved badge |
 
 Blue = buying, red = selling. If you add red somewhere that isn't the selling path or a
-genuine attention state, the system stops meaning anything.
+genuine attention state, the system stops meaning anything. The one exception is the navbar's
+current-page pill, which is near-white — see [The navbar](#the-navbar).
 
 Colour changes are load-bearing — lightening the charcoal lowers the contrast of everything
 on it. After changing any token, run:
@@ -101,7 +160,7 @@ on it. After changing any token, run:
 python scripts/verify_theme.py
 ```
 
-It parses the real `@theme` block and checks 27 foreground/background pairs that exist in
+It parses the real `@theme` block and checks 32 foreground/background pairs that exist in
 the components, exiting non-zero if any fails.
 
 Note the primary button is `bg-accent-400` with **dark** text. That is what forces the
@@ -119,35 +178,50 @@ src/
     layout.tsx          fonts, metadata, JSON-LD, header + footer shell
     page.tsx            homepage — composes the nine sections
     cars/page.tsx       inventory page — reads searchParams, renders the grid
-    globals.css         DESIGN TOKENS: colours, type, radii, motion
-    not-found.tsx       styled 404 (covers routes not built yet)
+    cars/[id]/page.tsx  vehicle detail — prerendered per car, Car JSON-LD
+    globals.css         DESIGN TOKENS: colours, type, radii, motion,
+                        --spacing-nav (the header height everything offsets by)
+    not-found.tsx       styled 404
     icon.png            favicon
     apple-icon.png      iOS icon
     robots.ts sitemap.ts
   components/
-    layout/             AnnouncementBar, Header, MobileNav, Footer,
+    layout/             AnnouncementBar, Header (floating pill nav), Footer,
                         Wordmark, MobileWhatsAppButton
     home/               Hero, QuickSearch, FeaturedCars, WhyChooseUs,
                         SellExchange, ProcessSteps, RecentlySold,
                         Testimonials, LocationContact
     inventory/          FilterControls, InventoryToolbar, MobileFilterSheet,
                         ActiveFilterChips, InventoryEmptyState
+    vehicle/            VehicleGallery, SpecTable, EnquiryPanel,
+                        BuyerChecklist, SimilarVehicles
     ui/                 Button, Container, SectionHeading, StatusBadge,
                         VehicleCard, SoldVehicleCard, VehicleImage,
-                        Reveal, SocialIcon
+                        Reveal, SocialIcon, PageTransition (route cross-fade)
   config/site.ts        ALL BUSINESS DETAILS — phone, WhatsApp, address, hours
-  data/vehicles.ts      SAMPLE INVENTORY (placeholder)
+  data/vehicles.ts      SAMPLE INVENTORY (placeholder) + similar-car scoring
   data/testimonials.ts  PLACEHOLDER TESTIMONIALS
-  lib/                  format, whatsapp, utils, inventory (filter engine)
+  lib/                  format, whatsapp, utils, inventory (filter engine),
+                        vehicle (detail-page data shaping)
   types/vehicle.ts      Vehicle domain types
 scripts/
   generate_brand_assets.py   regenerates favicon + OG image (re-run after a palette change)
-  verify_theme.py            checks 27 real fg/bg contrast pairs against globals.css
+  verify_theme.py            checks 32 real fg/bg contrast pairs against globals.css
   analyse_hero_contrast.py   measures headline contrast over the hero photograph
+  measure_badge_contrast.py  measures a status badge against the photo behind it
   accent_contrast.py         explore alternative accent ramps
   contact_sheet.py           builds image review sheets
 qa/
-  qa-inventory.mjs           drives the built site in Edge; 44 assertions
+  qa-nav.mjs                 site-wide header harness; 62 assertions
+  qa-inventory.mjs           Phase 2 harness; 47 assertions
+  qa-detail.mjs              Phase 3 harness; 62 assertions
+  measure-badge.mjs          clips a badge to its DOM box for the contrast script
+  probe-404.mjs              one-off: which routes emit a React page error
+  probe-header.mjs           one-off: header height + what overflows a viewport
+  probe-color.mjs            one-off: what format getComputedStyle() returns
+  probe-scroll.mjs           one-off: does global smooth scrolling break the reset
+  probe-scroll-verify.mjs    measures where a nav click leaves the scroll position
+  probe-viewtransition.mjs   when the page cross-fade fires — and when it must not
   shot.mjs                   ad-hoc viewport screenshots for visual review
 ```
 
@@ -155,27 +229,45 @@ qa/
 
 ## Verification
 
-Three layers, all of which must be green before calling a phase done:
+Four layers, all of which must be green before calling a phase done:
 
 ```bash
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
-npm run build            # must list 8 routes, no errors
-python scripts/verify_theme.py   # 27 contrast pairs read from globals.css
+npm run build            # must list 22 prerendered routes, no errors
+python scripts/verify_theme.py   # 32 contrast pairs read from globals.css
 ```
 
 The browser pass needs the production build running:
 
 ```bash
-npm run build && npm run start          # in one terminal
-node qa/qa-inventory.mjs http://localhost:3000
+NODE_OPTIONS= npm run build && npm run start   # in one terminal
+node qa/qa-nav.mjs       http://localhost:3000   # header — 62 assertions
+node qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
+node qa/qa-detail.mjs    http://localhost:3000   # Phase 3 — 62 assertions
+node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only on route changes
 ```
 
 It drives real Microsoft Edge through `playwright-core` (`channel: 'msedge'` — no browser
 download) and asserts the things a screenshot cannot show: that the rendered result count
 matches the filter in the URL, that the back button restores state, that changing make
 clears a stale model, that the mobile sheet fills the viewport rather than being clipped,
-and that no console errors appear on any route.
+that every listing's spec table agrees with the data, that a sold car never offers to be
+bought, and that no console errors appear on any route. The header harness additionally
+measures the capsule's contrast over a light section from the rendered pixels, checks the
+sticky toolbar clears the header, and drives the mobile menu through Escape, outside-click
+and focus return.
+
+These harnesses have now caught five defects no screenshot would have shown: a React
+hydration mismatch on the 404 route, a status badge that only reached 1.52:1 against a bright
+photo, a sticky enquiry panel taller than the viewport, a `hidden md:inline-flex` CTA that
+never actually hid (because `cn()` does not merge Tailwind classes), and a header height that
+did not match the token every sticky offset depends on. All are documented in `AGENTS.md`.
+
+`scripts/measure_badge_contrast.py` is the odd one out: the status badge is translucent and
+sits on top of arbitrary vehicle photography, so its backdrop is not a design token and
+cannot be checked from CSS. That script clips the badge to its DOM box and measures the
+rendered pixels.
 
 ---
 
@@ -219,16 +311,24 @@ Swap the files **keeping the same filenames**, then update `imageAlt` in
 | `suzuki-vitara.jpg` | Suzuki Vitara 1.6 GL+ (2018) |
 | `suzuki-grand-vitara.jpg` | Suzuki Grand Vitara 2.4 (2015) |
 | `kia-picanto.jpg` | Kia Picanto 1.0 A/T (2021) — marked *reserved* |
-| `city-aspire.jpg` | Honda City 1.5 Aspire (2019) — sold |
+| `city-aspire.jpg` | Honda City 1.5 Aspire (2019) — sold ⚠️ **wrong car, see below** |
 | `hyundai-kona.jpg` | Hyundai Kona FWD (2019) — sold |
 | `hilux-revo.jpg` | Toyota Hilux Revo G (2020) — sold |
 | `bmw-x3.jpg` | BMW X3 xDrive30i (2018) — sold |
 | `hero-showroom.jpg` | Hero background |
 | `sell-exchange.jpg` | "Planning to Sell Your Car?" panel |
 
-Cards render at a fixed 4:3, so source images should be landscape and at least
-1600px wide. Portrait sources get centre-cropped by `object-cover` — check the result
-rather than assuming.
+**⚠️ Known photo mismatch.** `city-aspire.jpg` is a photograph of a **Toyota Corolla GLi** —
+the boot badge reads `TOYOTA` / `COROLLA GLi`, and the plate is an Islamabad plate — but it is
+used for the *Honda City 1.5 Aspire* listing. On a small card this is easy to miss; on the
+detail page, where the label sits directly above a 600px-wide photo, it is not. Replace the
+file with a real Honda City photo, or change that listing to a Corolla.
+
+Cards render at a fixed 4:3 and the detail gallery at 16:10, so source images should be
+landscape and at least 1600px wide. Three files are **portrait** (1600×2400):
+`city-aspire.jpg`, `hilux-revo.jpg` and `prado-tx.jpg`. `object-cover` centre-crops them, so
+only about 42% of their height survives the detail gallery. The Prado happens to crop
+acceptably; check any new portrait source rather than assuming.
 
 ### 3. Inventory data — `src/data/vehicles.ts`
 
@@ -236,8 +336,16 @@ rather than assuming.
 not real stock. Distribution is 9 available / 1 reserved / 4 sold, which is deliberate —
 it exercises the reserved badge, the sold treatment and the status filter.
 
+`description` is written from the record's own facts (year, trim, mileage, transmission,
+registration city) plus what the trim level means in that model range. It deliberately makes
+**no** claim about the condition of an individual car — do not add "immaculate",
+"accident-free" or similar. `highlight` is the one field that does carry a condition claim,
+and it is placeholder text to be replaced with verified information.
+
 The `get*` selectors below the array derive their options from this data, so adding a
 vehicle is enough to make its make, model, body type, fuel and city filterable.
+`getSimilarVehicles()` scores rather than filters, so it always returns results even for the
+cars with no close match (the Hilux pickup, the BMW), and never suggests a sold car.
 
 ---
 
@@ -245,18 +353,27 @@ vehicle is enough to make its make, model, body type, fuel and city filterable.
 
 - **Routes that don't exist yet.** `src/config/site.ts` exports `liveRoutes` and
   `shouldPrefetch()`. Next.js prefetches every `<Link>` in view, so linking to a route
-  that doesn't exist yet fires a burst of 404s. `/` and `/cars` are live. **As each route
-  ships, add it to `liveRoutes`.** That is the only change needed.
-- **Vehicle cards link to `/cars/{id}`** — the Phase 3 detail route, which is *not* in
-  `liveRoutes`. Those links currently land on the styled 404. That page's copy is written
-  for exactly this case, but it should be revisited once Phase 3 ships.
-- **`sitemap.ts`** lists `/` and `/cars`. Add each new route as it ships; do not list
-  filtered inventory URLs (they canonicalise to `/cars`).
+  that doesn't exist yet fires a burst of 404s. `/` and `/cars` are live, and the
+  `startsWith('/cars/')` check covers every `/cars/{id}` detail route from that one entry.
+  **As each new route ships, add it to `liveRoutes`.** That is the only change needed.
+- **`sitemap.ts`** lists `/`, `/cars` and every vehicle detail page. Add each new static
+  route as it ships; do not list filtered inventory URLs (they canonicalise to `/cars`).
+  Sold cars are included on purpose — see the comment in that file if you'd rather drop them.
 - **The quick-search panel** on the homepage already emits `/cars?make=…&minPrice=…&year=…`.
   `parseFilters` handles that exact shape, including the single `year` param.
 - **Design tokens** are all in `src/app/globals.css` under `@theme`. Change a colour
   there and it propagates everywhere — except the raster brand assets, which need
-  `scripts/generate_brand_assets.py` re-run by hand.
+  `scripts/generate_brand_assets.py` re-run by hand, and the hardcoded `rgba()` glows in
+  `Button.tsx`, `LocationContact.tsx` and `Wordmark.tsx`. `--spacing-nav` is the exception in
+  the other direction: it is a *height*, and `qa/qa-nav.mjs` asserts the rendered header
+  matches it, so if you change the navbar's padding or control sizes the suite will fail until
+  you update the token.
+- **The multi-photo gallery branch is untested.** `VehicleGallery` renders a thumbnail rail
+  when a vehicle's `gallery` array has entries, but every listing currently has exactly one
+  photo, so only the single-photo state has ever run. Add a second photo to a `gallery`
+  array and check it before trusting that path.
+- **Next up is the sell-your-car flow** (`/sell-your-car`), which every "Sell Your Car" CTA
+  already points at. That route is not in `liveRoutes`, so those links currently 404.
 
 ### 4. Testimonials — `src/data/testimonials.ts`
 

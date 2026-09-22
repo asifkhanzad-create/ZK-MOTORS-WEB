@@ -44,9 +44,9 @@ export function InventoryToolbar({
     <>
       <div
         className={cn(
-          "sticky top-16 z-30 mb-6 -mx-5 border-b border-ink-800 bg-ink-950 px-5 py-3",
+          "sticky top-nav z-30 mb-6 -mx-5 border-b border-ink-800 bg-ink-950 px-5 py-3",
           "sm:-mx-6 sm:px-6",
-          "lg:top-20 lg:mx-0 lg:px-0 lg:py-4",
+          "lg:mx-0 lg:px-0 lg:py-4",
         )}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

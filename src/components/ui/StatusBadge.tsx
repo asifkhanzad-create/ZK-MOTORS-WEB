@@ -4,6 +4,19 @@ import type { VehicleStatus } from "@/types/vehicle";
 /**
  * Status pill for a vehicle. Status is always communicated by text as well as
  * colour, so it never depends on colour perception alone.
+ *
+ * Every badge sits on top of vehicle photography, so it has to carry its own
+ * background rather than borrowing the photo's. The original tinted chips
+ * (`bg-status-available/12`) only shifted the backdrop by 12%, which measured
+ * **1.33:1** where the badge overlapped the bright sky in the Prado photo —
+ * against a 4.5:1 requirement for 11px text. The scrim is now 90% ink-950,
+ * which composites to #2f3237 over a pure-white photo pixel and clears 4.5:1
+ * for all three labels. The worst case is a white car or an overcast sky, so
+ * "over a white pixel" is the bar, not "over the average photo".
+ *
+ * The alpha is checked in `scripts/verify_theme.py`. If you lighten it, re-run
+ * that script — the badge is the one element on the site whose backdrop this
+ * codebase cannot control.
  */
 const statusStyles: Record<
   VehicleStatus,
@@ -11,20 +24,17 @@ const statusStyles: Record<
 > = {
   available: {
     label: "Available",
-    className: "bg-status-available/12 text-status-available border-status-available/30",
+    className: "bg-ink-950/90 text-status-available border-status-available/40",
     dot: "bg-status-available",
   },
   reserved: {
     label: "Reserved",
-    className: "bg-signal-500/14 text-signal-300 border-signal-500/35",
+    className: "bg-ink-950/90 text-signal-300 border-signal-500/45",
     dot: "bg-signal-400",
   },
   sold: {
     label: "Sold",
-    /* Sits over vehicle photography, so the scrim is kept heavier than the
-       other two — the charcoal base was lightened and /70 no longer holds
-       contrast against a bright photo. */
-    className: "bg-ink-950/85 text-bone-200 border-bone-50/20",
+    className: "bg-ink-950/90 text-bone-200 border-bone-50/20",
     dot: "bg-status-sold",
   },
 };

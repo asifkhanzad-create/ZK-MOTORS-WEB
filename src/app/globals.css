@@ -69,6 +69,21 @@
   --font-display: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
 
+  /* ---- Layout ---- */
+  /* Height of the sticky floating navbar:
+       44px  controls (every interactive element in the capsule)
+     + 12px  capsule padding (p-1.5, both sides)
+     +  2px  capsule border
+     + 28px  float padding (py-3.5 on the header)
+     = 86px
+     Anything that sticks *below* the header offsets by this token — the
+     inventory results toolbar, the /cars filter rail, the detail-page enquiry
+     panel — so the header can change height in one place instead of four.
+     `top-nav` for a flush offset; `calc(var(--spacing-nav) + 1rem)` for one
+     with breathing room. qa/qa-nav.mjs asserts the rendered header really is
+     86px at six viewports, so the token cannot silently drift from the markup. */
+  --spacing-nav: 5.375rem;
+
   /* ---- Radii ---- */
   --radius-card: 1.125rem;
 
@@ -87,7 +102,25 @@
 
   html {
     -webkit-text-size-adjust: 100%;
-    scroll-behavior: smooth;
+    /*
+     * Deliberately NOT `scroll-behavior: smooth`.
+     *
+     * That property applies to every programmatic scroll, including the one
+     * Next.js performs when you navigate to a new route. The reset then animates
+     * from wherever you were, and the incoming page swaps in mid-animation — the
+     * document height changes underneath it and the animation settles short.
+     * Measured: navigating to /cars from the homepage at scrollY 2400 landed at
+     * **131**, so you arrived part-way down the new page. With this rule removed
+     * the same navigation lands at 0.
+     *
+     * Smooth scrolling is still used where it is actually wanted: the navbar
+     * scrolls to the top when you click a link to the page you are already on,
+     * passing `behavior: "smooth"` explicitly and honouring reduced motion.
+     * See handleNavClick in components/layout/Header.tsx.
+     *
+     * The skip link below therefore jumps instantly, which is what a skip link
+     * should do anyway.
+     */
   }
 
   body {
@@ -165,17 +198,29 @@
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* Belt and braces. This only governs CSS-triggered scrolling, so the
+       navbar's scroll-to-top checks the media query in JS before passing
+       `behavior: "smooth"` — the `behavior` option ignores this rule. */
     scroll-behavior: auto !important;
+  }
+}
+
+/* View transitions — the page cross-fade in `PageTransition.tsx` — are driven
+   by the `::view-transition-*` pseudo-elements, which the `*` rule above does
+   not reach: `*` matches elements, not pseudo-elements. Without this the fade
+   would still play for a visitor who has asked for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }
 

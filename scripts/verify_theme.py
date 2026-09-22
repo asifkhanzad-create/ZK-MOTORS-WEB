@@ -89,6 +89,23 @@ CHECKS: list[tuple[str, str, str, float]] = [
     # Outline buttons must remain identifiable as controls on the dark surface.
     ("outline button border ink-500 on dark", "ink-500", "ink-950", 3.0),
     ("outline button border on light", "ink-400", "bone-50", 3.0),
+    # The filled signal button now also appears on a LIGHT band (the /cars
+    # closing CTA). Until then signal-500 only ever sat on charcoal, so its
+    # boundary against the light section was never checked.
+    ("signal-500 fill on light section", "signal-500", "bone-50", 3.0),
+    # The hero's Sell CTA is now a filled signal button too, so its edge has to
+    # stay legible against the dark hero scrim (worst case = ink-950 under the
+    # photograph). Without this the red fill could sit on near-black unnoticed.
+    ("signal-500 fill on hero scrim", "signal-500", "ink-950", 3.0),
+    # Status badges sit over arbitrary vehicle photography, so their backdrop is
+    # the one thing this codebase cannot control. Worst case is a pure-white
+    # photo pixel (a white car, an overcast sky). The badge scrim is ink-950 at
+    # 90%, which composites to #2f3237 over white — that is the value checked
+    # here. Measured 1.33:1 before the scrim was added, because a 12% tint just
+    # inherits whatever is behind it.
+    ("available badge over white photo", "status-available", "#2f3237", 4.5),
+    ("reserved badge over white photo", "status-reserved", "#2f3237", 4.5),
+    ("sold badge over white photo", "status-sold", "#2f3237", 4.5),
 ]
 
 

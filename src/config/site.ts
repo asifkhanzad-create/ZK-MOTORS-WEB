@@ -82,12 +82,43 @@ export const siteConfig = {
   /** Pre-filled WhatsApp message used by every WhatsApp CTA. */
   whatsappMessage:
     "Hello ZK Motors, I would like to enquire about a vehicle.",
+
+  /**
+   * Shown on every vehicle detail page.
+   *
+   * These are the things a used-car buyer should ask about that this website
+   * genuinely cannot answer on a car's behalf. They are written as questions
+   * rather than statements on purpose: the site has not inspected these cars,
+   * so it must not imply otherwise. Edit this list to match what your team
+   * actually checks before a car goes on the lot.
+   */
+  buyerChecklist: [
+    "Service history and the date of the last service",
+    "How many previous owners the car has had",
+    "Any accident or insurance history",
+    "Tyre condition and remaining tread",
+    "Documents, token tax and transfer status",
+    "Whether the asking price is negotiable",
+  ],
 } as const;
 
 export type SiteConfig = typeof siteConfig;
 
 /** Absolute site URL — used for metadata and structured data. */
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://zkmotors.pk";
+
+/**
+ * Google Maps search link for the showroom. A plain search URL works without
+ * an API key, which keeps this a zero-dependency map link.
+ *
+ * Lives here rather than in each component because it was already being built
+ * separately in the footer and the contact section, and the vehicle detail
+ * page needed it too — three copies of one URL is three places to forget when
+ * the address changes.
+ */
+export const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  siteConfig.address.full,
+)}`;
 
 /**
  * Routes that are actually built and reachable right now.
@@ -98,8 +129,9 @@ export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://zkmotors.pk"
  * for planned ones.
  *
  * Phase 2+: add each route here as it ships — that is the only change needed.
- * `/cars` is live; the vehicle detail routes under it (`/cars/{id}`) are Phase 3
- * and are intentionally NOT covered by this entry.
+ * `/cars` and the vehicle detail routes under it (`/cars/{id}`) are both live
+ * as of Phase 3. The `startsWith(`${route}/`)` check below covers every detail
+ * route from the single `/cars` entry, so no per-vehicle entry is needed.
  */
 export const liveRoutes: readonly string[] = ["/", "/cars"];
 

@@ -1,8 +1,8 @@
 import { Fuel, Gauge, MapPin, MessageCircle, Settings2 } from "lucide-react";
 
+import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { VehicleImage } from "@/components/ui/VehicleImage";
-import { buttonClasses } from "@/components/ui/Button";
 import { formatMileage, formatPKR, vehicleTitle } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl, vehicleEnquiryMessage } from "@/lib/whatsapp";
@@ -31,6 +31,11 @@ const CARD_IMAGE_SIZES = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33
 /**
  * Reusable vehicle card used by both "Featured cars" and "Recently sold".
  * Sold vehicles are visually quieter and drop the enquiry action.
+ *
+ * Both actions go through `Button` rather than hand-rolled anchors: the detail
+ * link needs next/link so the route prefetches (see `shouldPrefetch`), and
+ * keeping one component in charge of button styling is the whole reason it
+ * exists.
  */
 export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const isSold = vehicle.status === "sold";
@@ -101,31 +106,27 @@ export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <a
+            <Button
               href={`/cars/${vehicle.id}`}
-              className={buttonClasses({
-                variant: isSold ? "outline" : "primary",
-                size: "md",
-                className: "flex-1",
-              })}
+              variant={isSold ? "outline" : "primary"}
+              size="md"
+              className="flex-1"
             >
               View Details
-            </a>
+            </Button>
 
             {!isSold && whatsappUrl ? (
-              <a
+              <Button
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                variant="whatsapp"
+                size="md"
+                className="px-4"
                 aria-label={`Enquire about the ${title} on WhatsApp`}
-                className={buttonClasses({
-                  variant: "whatsapp",
-                  size: "md",
-                  className: "px-4",
-                })}
               >
                 <MessageCircle aria-hidden="true" className="size-5" />
-              </a>
+              </Button>
             ) : null}
           </div>
         </div>

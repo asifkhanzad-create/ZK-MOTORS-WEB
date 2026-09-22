@@ -36,5 +36,18 @@ export interface Vehicle {
   imageAlt: string;
   /** Optional short highlight line shown on the card. */
   highlight?: string;
+  /**
+   * Longer copy for the detail page. Kept optional so a listing can ship
+   * without it — the page falls back to a generated line rather than
+   * rendering an empty paragraph.
+   */
+  description?: string;
+  /**
+   * Extra photographs of the same car, beyond `image`. Empty for every
+   * placeholder listing because only one photo per vehicle was sourced;
+   * the detail gallery renders a thumbnail rail automatically once this
+   * has entries. Phase 5 (real stock) is where it starts getting used.
+   */
+  gallery?: string[];
   featured?: boolean;
 }

@@ -331,6 +331,34 @@ async function run() {
     "homepage has no horizontal overflow",
   );
 
+  /* The client asked twice for the selling path to be filled red rather than an
+     outline — first the /cars closing band, then the hero. Pin the hero's one
+     down, because "it should look red" is a stated requirement that nothing else
+     in this file would catch if a refactor reverted it.
+     Read computed style rather than class names: the base classes contain
+     `transition-[...,border-color,...]`, so a naive /border/ match on the class
+     string reports an outline that is not there. */
+  const heroSell = page.locator('section a[href="/sell-your-car"]').first();
+  const heroSellStyle = await heroSell.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, fg: cs.color, border: cs.borderTopWidth };
+  });
+  check(
+    heroSellStyle.bg === "rgb(201, 68, 56)",
+    "hero Sell CTA is filled with signal-500",
+    heroSellStyle.bg,
+  );
+  check(
+    heroSellStyle.fg === "rgb(255, 255, 255)",
+    "hero Sell CTA label is white",
+    heroSellStyle.fg,
+  );
+  check(
+    heroSellStyle.border === "0px",
+    "hero Sell CTA is filled, not outlined",
+    heroSellStyle.border,
+  );
+
   /* ------------------------------------------------------------------ */
   console.log("\n== Console ==");
   /* Next dev/start logs a 404 for a missing favicon route; ignore that. */

@@ -14,7 +14,7 @@ export type ButtonVariant =
   | "ghostLight"
   | "whatsapp";
 
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-full font-medium " +
@@ -48,10 +48,13 @@ const variants: Record<ButtonVariant, string> = {
      3:1 or better against the light sections. */
   outlineLight:
     "border border-ink-400 text-ink-900 hover:bg-ink-950/5 hover:border-ink-500",
-  /* Subordinate signal action — used where the primary CTA is cobalt.
-     Border is signal-400 rather than signal-500 so the control boundary stays
-     clearly visible on the charcoal surface (5.4:1) while remaining visibly
-     less prominent than the filled cobalt button beside it. */
+  /* Subordinate signal action. Currently unused: the hero's Sell CTA was moved
+     to `primarySignal` at the client's request, and the /cars closing band uses
+     it too. Kept because it is the only red treatment that stays legible on
+     charcoal while reading as *quieter* than a filled cobalt button beside it —
+     which is what you want if a sell action ever has to sit next to a cobalt
+     primary. Border is signal-400 rather than signal-500 so the control boundary
+     stays clearly visible on the charcoal surface (5.4:1). */
   outlineSignal:
     "border border-signal-400 text-signal-300 hover:bg-signal-500/15 hover:border-signal-300",
   ghost: "text-bone-50 hover:bg-white/8",
@@ -65,6 +68,12 @@ const sizes: Record<ButtonSize, string> = {
   sm: "min-h-10 px-4 text-sm",
   md: "min-h-11 px-5 text-[0.9375rem]",
   lg: "min-h-12 px-6 text-base",
+  /* Square, icon-only. Carries its own padding *instead of* `md` rather than
+     alongside it: `cn()` is a plain join, not tailwind-merge, so a `px-0`
+     passed through `className` loses to `md`'s `px-5` (it is emitted later in
+     the sheet). The navbar's WhatsApp button did exactly that and rendered a
+     44px pill with 40px of padding, squeezing the 24px glyph to 4px wide. */
+  icon: "size-11 p-0",
 };
 
 export function buttonClasses({

@@ -3,13 +3,8 @@ import { Clock, MapPin, MessageCircle, Navigation, Phone } from "lucide-react";
 import { buttonClasses } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { siteConfig } from "@/config/site";
+import { siteConfig, directionsUrl } from "@/config/site";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
-
-/** Search query for the "Get directions" link — works without an API key. */
-const directionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-  siteConfig.address.full,
-)}`;
 
 const contactRows = [
   {

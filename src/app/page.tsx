@@ -7,6 +7,7 @@ import { RecentlySold } from "@/components/home/RecentlySold";
 import { SellExchange } from "@/components/home/SellExchange";
 import { Testimonials } from "@/components/home/Testimonials";
 import { WhyChooseUs } from "@/components/home/WhyChooseUs";
+import { PageTransition } from "@/components/ui/PageTransition";
 
 /**
  * Homepage.
@@ -16,7 +17,7 @@ import { WhyChooseUs } from "@/components/home/WhyChooseUs";
  */
 export default function HomePage() {
   return (
-    <>
+    <PageTransition>
       <Hero />
       <QuickSearch />
       <FeaturedCars />
@@ -26,6 +27,6 @@ export default function HomePage() {
       <RecentlySold />
       <Testimonials />
       <LocationContact />
-    </>
+    </PageTransition>
   );
 }

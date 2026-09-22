@@ -8,11 +8,13 @@ import { InventoryEmptyState } from "@/components/inventory/InventoryEmptyState"
 import { InventoryToolbar } from "@/components/inventory/InventoryToolbar";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
+import { PageTransition } from "@/components/ui/PageTransition";
 import { VehicleCard } from "@/components/ui/VehicleCard";
 import { siteConfig, siteUrl } from "@/config/site";
 import { vehicles } from "@/data/vehicles";
 import { formatPKR, vehicleTitle } from "@/lib/format";
 import { defaultFilters, parseFilters, selectVehicles } from "@/lib/inventory";
+import { AVAILABILITY } from "@/lib/vehicle";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 const title = "Used Cars for Sale in Wah Cantt & Taxila";
@@ -42,12 +44,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-};
-
-const AVAILABILITY: Record<string, string> = {
-  available: "https://schema.org/InStock",
-  reserved: "https://schema.org/LimitedAvailability",
-  sold: "https://schema.org/SoldOut",
 };
 
 /**
@@ -113,7 +109,7 @@ export default async function CarsPage({
   };
 
   return (
-    <>
+    <PageTransition>
       {/* ------------------------------ Page head ------------------------------ */}
       <section className="border-b border-ink-800 bg-ink-950 py-10 sm:py-12">
         <Container>
@@ -178,7 +174,9 @@ export default async function CarsPage({
                 toolbar, which is why this is hidden below lg rather than
                 collapsed. */}
             <aside aria-label="Filter cars" className="hidden lg:block">
-              <div className="sticky top-24 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pb-4 pr-1">
+              {/* One rem of breathing room below the sticky header — see the
+                  --spacing-nav note in globals.css. */}
+              <div className="sticky top-[calc(var(--spacing-nav)+1rem)] max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pb-4 pr-1">
                 <h2 className="mb-5 text-eyebrow text-ink-400">Refine</h2>
                 <FilterControls filters={filters} />
               </div>
@@ -232,7 +230,10 @@ export default async function CarsPage({
             </div>
 
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-              <Button href="/sell-your-car" variant="outlineLight" size="lg">
+              {/* Signal red, not the neutral outline: this is the selling path,
+                  and red is what the rest of the site uses to mark it. Matches
+                  the Sell/Exchange CTA on the homepage. */}
+              <Button href="/sell-your-car" variant="primarySignal" size="lg">
                 Sell or exchange yours
               </Button>
 
@@ -266,6 +267,6 @@ export default async function CarsPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }}
       />
-    </>
+    </PageTransition>
   );
 }

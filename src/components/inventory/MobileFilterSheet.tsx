@@ -12,10 +12,10 @@ import { cn } from "@/lib/utils";
 /**
  * Filter panel as a slide-over on small screens.
  *
- * Same structure as MobileNav, and for the same reason: the panel is absolutely
- * positioned inside a fixed, viewport-sized `overflow-hidden` wrapper. A fixed
- * panel translated off-screen would otherwise extend the document's scroll
- * width and give the whole page a horizontal scrollbar.
+ * The panel is absolutely positioned inside a fixed, viewport-sized
+ * `overflow-hidden` wrapper. A fixed panel translated off-screen would
+ * otherwise extend the document's scroll width and give the whole page a
+ * horizontal scrollbar.
  *
  * Every control inside writes straight to the URL, so filters apply live and
  * the result count in the footer updates as the visitor taps. The footer button

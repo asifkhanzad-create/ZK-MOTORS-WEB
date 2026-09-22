@@ -68,7 +68,7 @@ export function Hero() {
             </Button>
             <Button
               href="/sell-your-car"
-              variant="outlineSignal"
+              variant="primarySignal"
               size="lg"
               className="w-full sm:w-auto"
             >
