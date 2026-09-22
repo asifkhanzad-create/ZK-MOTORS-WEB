@@ -57,6 +57,56 @@ Known gaps as of the last session:
 - The navbar's current-page pill is `bone-50`, which contradicts the documented
   "cobalt = nav active state" rule. It reads well, but it is an exception nobody
   has signed off. Raise it.
+- **The site has never been deployed.** There is no hosting config of any kind —
+  no `vercel.json`, no workflow. It runs only on a local `next start`. For a site
+  whose entire purpose is generating phone calls, "how does this get to a domain"
+  is an open question that is not in the phase plan.
+
+## Phase 5 — get these answers before writing code
+
+Phase 5 replaces the placeholder dataset with Supabase. **None of the following is
+a technical choice to make unilaterally** — each one changes the shape of the work,
+so ask first:
+
+1. **Project + keys.** Supabase URL, anon key, and whether a service-role key will
+   be available. The service-role key bypasses row-level security and must never
+   reach the browser — if it is needed for writes, those writes happen in a server
+   action or route handler, never in a client component.
+2. **Where do photos live?** Either Supabase Storage, or the current
+   `public/vehicles/` directory stays and only the *metadata* moves to Postgres.
+   This is the single biggest fork in the work: Storage means an upload path, a
+   bucket policy and signed URLs.
+3. **Does the sell form start storing submissions?** Today `ValuationForm` composes
+   a WhatsApp message and sends nothing. Phase 5 is the first point where a real
+   submission *could* be persisted. If yes, that is a new table and a new write
+   path — and the form's "nothing is sent until you press send" copy must change,
+   because it would stop being true.
+4. **Auth for the Phase 6 dashboard.** Which provider, and who gets accounts. This
+   shapes the schema now, so decide it now.
+5. **Rendering strategy — the one that will bite.** The site is currently **fully
+   static: 27 prerendered routes, zero runtime data fetching.** Reading from
+   Postgres makes that a choice: keep static output plus time-based revalidation,
+   or render dynamically. This interacts directly with the Phase 2 decision that
+   **filter state lives entirely in the URL and results are server-rendered** — see
+   below. Do not solve it by moving filtering to the client.
+
+**Constraints that must survive Phase 5:**
+
+- **The URL-driven filter engine stays.** `parseFilters` → `selectVehicles` →
+  `hrefFor` in `src/lib/inventory.ts`. Back button, shareable URLs, no loading
+  state. The tempting move — "now that there's a database, fetch on the client" —
+  throws all of that away.
+- **Facets must still derive from actual stock** (`getMakes()`, `getBodyTypes()`, …).
+  A database makes it easier to query the distinct values; do that rather than
+  hardcoding a list, so the UI still cannot offer a filter that returns nothing.
+- **`inventoryIsPlaceholder` and the visible "sample content" notices** exist so
+  fake content cannot read as verified. When real data lands, turn them off in the
+  same commit — and not before, because stock that is still sample stock must keep
+  the notice.
+- **`/privacy` currently states there are no accounts and no cookies.** That claim
+  is about site *visitors*, and admin auth is a separate surface — but the moment
+  anything cookie-based touches a public page, that page is wrong and must be
+  updated in the same commit.
 
 ## Non-negotiable conventions
 
