@@ -1,0 +1,52 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# editor / IDE local state.
+# .vscode is ignored except for extensions.json, so shared recommendations can
+# still be committed deliberately while personal settings stay out.
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# assistant working memory.
+# This is tool state, rewritten every session — it churns, and it is written for
+# a tool rather than for someone reading the repo. The durable version of the
+# project knowledge in here lives in README.md.
+.workbuddy-ai/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# downloaded font cache for scripts/generate_brand_assets.py
+scripts/.font-cache/
+
+# QA output — regenerable with `node qa/qa-inventory.mjs` and `node qa/shot.mjs`
+/screenshots/
+
+# vercel
+.vercel

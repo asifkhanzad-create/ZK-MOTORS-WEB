@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   ZK Motors — Design tokens
+   Foundation: cool charcoal. Balance: near-neutral white. Accents: cobalt blue
+   primary, signal red secondary (red is reserved for attention, never for the
+   main call to action — see the notes on each ramp).
+   ========================================================================== */
+
+@theme {
+  /* ---- Foundation: cool charcoal ----
+     Lifted off near-black so large dark areas stop reading as a void. Every
+     value is a step up from the previous #0a0b0d-based ramp; verify any change
+     with `python scripts/verify_theme.py` because a lighter base lowers the
+     contrast of everything placed on it. */
+  --color-ink-950: #181b21;
+  --color-ink-900: #1e222a;
+  --color-ink-850: #252a33;
+  --color-ink-800: #2d333d;
+  --color-ink-700: #3a414c;
+  --color-ink-600: #49525f;
+  --color-ink-500: #5f6976;
+  --color-ink-400: #808b99;
+
+  /* ---- Light: near-neutral white, cooled slightly to sit with the blue ---- */
+  --color-bone-50: #fafaf9;
+  --color-bone-100: #f1f1f0;
+  --color-bone-200: #e4e4e4;
+  --color-bone-300: #cfd0d2;
+  --color-bone-400: #a7a9ae;
+
+  /* ---- Accent (primary): cobalt blue ----
+     accent-400 is the button fill and must carry ink-950 text on top.
+     accent-300 is accent text on dark, accent-700 is accent text on light.
+     accent-500 is the focus ring, dark enough to clear 3:1 on BOTH surfaces. */
+  --color-accent-200: #cfe3fa;
+  --color-accent-300: #9cc6f2;
+  --color-accent-400: #5fa0e8;
+  --color-accent-500: #2f7dd0;
+  --color-accent-600: #1f5fa6;
+  --color-accent-700: #16497c;
+
+  /* ---- Accent (secondary): signal red ----
+     Used only for attention and secondary actions — the reserved status and
+     the sell/exchange path. Never for the primary CTA.
+     Named `signal`, not `red`, on purpose: declaring --color-red-* in @theme
+     would override only the levels listed here and leave the rest of Tailwind's
+     built-in red scale in place, giving one ramp with two different origins. */
+  --color-signal-200: #fadad7;
+  --color-signal-300: #f2a8a0;
+  --color-signal-400: #e56a5e;
+  --color-signal-500: #c94438;
+  --color-signal-600: #a23026;
+  --color-signal-700: #7a231c;
+
+  /* ---- Semantic text ---- */
+  --color-muted-dark: #a9b0bb; /* on dark surfaces */
+  --color-muted-light: #55585e; /* on light surfaces */
+
+  /* ---- Status ---- */
+  --color-status-available: #6fdc9b;
+  --color-status-reserved: #f2a8a0;
+  --color-status-sold: #9aa4b2;
+
+  /* ---- WhatsApp brand (used only for the WhatsApp action) ---- */
+  --color-whatsapp: #25d366;
+
+  /* ---- Typography ---- */
+  --font-display: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+
+  /* ---- Radii ---- */
+  --radius-card: 1.125rem;
+
+  /* ---- Motion ---- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-ink-700);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-bone-50);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Guard against any accidental horizontal overflow on small screens */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Visible, consistent keyboard focus everywhere.
+     accent-500 rather than the lighter accent-400: it has to clear 3:1 against
+     both the dark charcoal and the light sections, and accent-400 is too pale
+     to do that on the light side. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Don't show the ring for mouse users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-500);
+    color: var(--color-ink-950);
+  }
+
+  img,
+  svg,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+@utility text-eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 600;
+  /* Montserrat is already a wide geometric face, so the tracking is tighter
+     than it would need to be for a narrower font — at 0.16em these uppercase
+     eyebrows sprawl across the section. */
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Motion — respect reduced-motion at every level
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Subtle scroll-reveal, opt-in via the Reveal component */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s var(--ease-out-soft),
+    transform 0.6s var(--ease-out-soft);
+  will-change: opacity, transform;
+}
+
+.reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
