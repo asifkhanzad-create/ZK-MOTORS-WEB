@@ -17,7 +17,7 @@ export function FeaturedCars() {
           <SectionHeading
             eyebrow="Available now"
             title="Featured cars"
-            description="A selection from our current stock in Wah Cantt and Taxila. Every listing shows the year, mileage and asking price up front."
+            description="A selection from our current stock in Wah Cantt. Every listing shows the year, mileage and asking price up front."
           />
           <Button
             href="/cars"

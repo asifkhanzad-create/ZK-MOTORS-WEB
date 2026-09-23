@@ -42,7 +42,7 @@ export function MapPlaceholder({ className }: { className?: string }) {
       />
 
       <div className="relative flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-        <span className="grid size-12 place-items-center rounded-full bg-accent-400 text-ink-950 shadow-[0_8px_24px_-6px_rgba(95,160,232,0.65)]">
+        <span className="grid size-12 place-items-center rounded-full bg-accent-400 text-ink-950 shadow-[0_8px_24px_-6px_rgba(76,194,255,0.65)]">
           <MapPin aria-hidden="true" className="size-6" />
         </span>
         <div className="flex flex-col gap-1">

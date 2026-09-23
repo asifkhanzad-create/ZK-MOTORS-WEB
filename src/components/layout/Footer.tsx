@@ -45,8 +45,8 @@ export function Footer() {
           <div className="flex flex-col gap-5 lg:col-span-4">
             <Wordmark />
             <p className="max-w-sm text-sm leading-relaxed text-muted-dark">
-              ZK Motors buys, sells and exchanges quality used cars for buyers
-              and sellers across {siteConfig.serviceArea} and nearby areas.
+              ZK Motors buys, sells and exchanges quality used cars, from our
+              showroom in {siteConfig.basedIn}.
             </p>
 
             {activeSocialLinks.length > 0 ? (

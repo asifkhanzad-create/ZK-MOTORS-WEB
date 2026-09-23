@@ -35,12 +35,18 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp";
  * Five deliberate departures, each for a reason this site has and the demo did
  * not:
  *
- * 1. `bg-white/6` -> `bg-ink-950/85`. The demo sits on a permanently dark page.
+ * 1. `bg-white/6` -> `bg-ink-950/92`. The demo sits on a permanently dark page.
  *    This site alternates dark and light bands, so a 6%-white capsule drifts
  *    over bone-50 sections, where the capsule and its near-white text measure
- *    1.00:1 — invisible. An 85% charcoal scrim gives the capsule its own
- *    controlled backdrop: 10.6:1 for the wordmark and 5.05:1 for the links over
- *    the lightest band, and 8.1:1 measured over a real bone-50 section.
+ *    1.00:1 — invisible. A 92% charcoal scrim gives the capsule its own
+ *    controlled backdrop: 11.74:1 for the wordmark and 5.62:1 for the links over
+ *    the lightest band, measured on the rendered page.
+ *
+ *    The alpha was 85% until the base moved #181b21 -> #242424. The scrim is a
+ *    *derived* colour, so a lighter ink composites lighter: at 85% the links fell
+ *    to 4.46:1 against a 4.5:1 requirement. `qa/qa-nav.mjs` reads the alpha off
+ *    the rendered class and recomputes rather than hardcoding a ratio, which is
+ *    how it was caught. If you lighten the base again, raise this alpha with it.
  * 2. `z-100` -> `z-50`. z-100 is fine on a standalone demo page. Here the
  *    mobile filter sheet is z-70 and has to cover the header when it opens, so
  *    the header must stay below it.
@@ -53,8 +59,8 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp";
  *    can span the header's width. As a child it would be squeezed to the
  *    capsule's width — about 260px on a 360px screen, with five links inside.
  * 5. The active pill is `bone-50` on `ink-950` — near-white, as designed —
- *    rather than the cobalt the old underline used. See the note on the desktop
- *    links below.
+ *    rather than the accent blue the old underline used. See the note on the
+ *    desktop links below.
  *
  * ---------------------------------------------------------------------------
  * Height, and why it is 86px
@@ -188,7 +194,7 @@ export function Header() {
             aria-label="Main"
             className={cn(
               "mx-auto flex w-fit items-center gap-1 rounded-full",
-              "border border-white/10 bg-ink-950/85 p-1.5 backdrop-blur-md",
+              "border border-white/10 bg-ink-950/92 p-1.5 backdrop-blur-md",
               "shadow-[0_8px_32px_oklch(0_0_0/0.4),inset_0_1px_0_oklch(1_0_0/0.08)]",
             )}
           >
@@ -226,12 +232,12 @@ export function Header() {
                       conditional removes the question.
 
                       The fill is bone-50 with ink-950 text — near-white, as the
-                      design specifies — and not the accent cobalt the old
+                      design specifies — and not the accent blue the old
                       underline used. On /cars the current pill sits a few
-                      hundred pixels from the cobalt "Find a Car" button, and
-                      both point at the same page; two cobalt pills in one
+                      hundred pixels from the blue "Find a Car" button, and
+                      both point at the same page; two blue pills in one
                       capsule read as a mistake. Near-white says "you are here",
-                      cobalt says "click me", and they no longer compete.
+                      blue says "click me", and they no longer compete.
                     */}
                     <Link
                       href={item.href}

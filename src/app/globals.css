@@ -2,25 +2,34 @@
 
 /* ==========================================================================
    ZK Motors — Design tokens
-   Foundation: cool charcoal. Balance: near-neutral white. Accents: cobalt blue
+   Foundation: neutral charcoal. Balance: near-neutral white. Accents: sky blue
    primary, signal red secondary (red is reserved for attention, never for the
    main call to action — see the notes on each ramp).
    ========================================================================== */
 
 @theme {
-  /* ---- Foundation: cool charcoal ----
-     Lifted off near-black so large dark areas stop reading as a void. Every
-     value is a step up from the previous #0a0b0d-based ramp; verify any change
-     with `python scripts/verify_theme.py` because a lighter base lowers the
-     contrast of everything placed on it. */
-  --color-ink-950: #181b21;
-  --color-ink-900: #1e222a;
-  --color-ink-850: #252a33;
-  --color-ink-800: #2d333d;
-  --color-ink-700: #3a414c;
-  --color-ink-600: #49525f;
-  --color-ink-500: #5f6976;
-  --color-ink-400: #808b99;
+  /* ---- Foundation: neutral charcoal ----
+     Client-supplied base: #242424. Note this is a NEUTRAL grey (R=G=B), where
+     the previous ramp was cool/blue-cast (#181b21 and friends). The whole ramp
+     is rebuilt neutral to match — a neutral base with blue-cast panels would be
+     one ramp with two origins, the same mistake the `signal` naming avoids.
+
+     The steps below are *lifted* relative to the old ramp, not just re-hued,
+     because #242424 is lighter than #181b21. ink-900/850/800 are panel surfaces
+     that must sit ABOVE the page: leaving them at their old values would have
+     made panels darker than the background and inverted the elevation model.
+
+     A lighter base lowers the contrast of everything placed on it, so any change
+     here must be re-run through `python scripts/verify_theme.py`. It also moves
+     the `bg-ink-950/95` badge scrim composite — see StatusBadge.tsx. */
+  --color-ink-950: #242424;
+  --color-ink-900: #2c2c2c;
+  --color-ink-850: #333333;
+  --color-ink-800: #3c3c3c;
+  --color-ink-700: #4a4a4a;
+  --color-ink-600: #5e5e5e;
+  --color-ink-500: #757575;
+  --color-ink-400: #8f8f8f;
 
   /* ---- Light: near-neutral white, cooled slightly to sit with the blue ---- */
   --color-bone-50: #fafaf9;
@@ -29,16 +38,22 @@
   --color-bone-300: #cfd0d2;
   --color-bone-400: #a7a9ae;
 
-  /* ---- Accent (primary): cobalt blue ----
-     accent-400 is the button fill and must carry ink-950 text on top.
+  /* ---- Accent (primary): sky blue ----
+     Client-supplied: #4cc2ff at accent-400. The rest of the ramp is derived
+     from it at the same lightness steps the previous cobalt ramp used.
+
+     accent-400 is the button fill and must carry ink-950 text on top — #4cc2ff
+     does so at 7.73:1, comfortably better than the #5fa0e8 it replaces, so the
+     "light enough to host dark text" constraint that drives this ramp is met
+     with room to spare.
      accent-300 is accent text on dark, accent-700 is accent text on light.
      accent-500 is the focus ring, dark enough to clear 3:1 on BOTH surfaces. */
-  --color-accent-200: #cfe3fa;
-  --color-accent-300: #9cc6f2;
-  --color-accent-400: #5fa0e8;
-  --color-accent-500: #2f7dd0;
-  --color-accent-600: #1f5fa6;
-  --color-accent-700: #16497c;
+  --color-accent-200: #cdeeff;
+  --color-accent-300: #7acbff;
+  --color-accent-400: #4cc2ff;
+  --color-accent-500: #1b8fd4;
+  --color-accent-600: #0f6fae;
+  --color-accent-700: #0d5279;
 
   /* ---- Accent (secondary): signal red ----
      Used only for attention and secondary actions — the reserved status and

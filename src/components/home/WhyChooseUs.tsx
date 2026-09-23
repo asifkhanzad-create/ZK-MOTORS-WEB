@@ -29,8 +29,8 @@ const benefits = [
   },
   {
     icon: MapPin,
-    title: "Local to Wah Cantt and Taxila",
-    body: `Based in ${siteConfig.serviceArea}, so viewings, follow-ups and after-sale questions are easy to arrange.`,
+    title: "A showroom you can visit",
+    body: `Based in ${siteConfig.basedIn}, so viewings, follow-ups and after-sale questions are easy to arrange.`,
   },
 ];
 

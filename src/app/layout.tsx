@@ -18,12 +18,12 @@ const montserrat = Montserrat({
 });
 
 const description =
-  "Browse quality used cars or sell and exchange your vehicle with ZK Motors, serving Wah Cantt, Taxila and nearby areas.";
+  "Browse quality used cars for sale, or sell and exchange your vehicle, with ZK Motors. Visit our showroom in Wah Cantt, Punjab.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "ZK Motors | Used Cars in Wah Cantt & Taxila",
+    default: "ZK Motors | Used Cars in Wah Cantt",
     template: `%s | ${siteConfig.name}`,
   },
   description,
@@ -45,20 +45,20 @@ export const metadata: Metadata = {
     locale: "en_PK",
     url: siteUrl,
     siteName: siteConfig.name,
-    title: "ZK Motors | Used Cars in Wah Cantt & Taxila",
+    title: "ZK Motors | Used Cars in Wah Cantt",
     description,
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "ZK Motors — used cars in Wah Cantt and Taxila",
+        alt: "ZK Motors — used cars in Wah Cantt",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ZK Motors | Used Cars in Wah Cantt & Taxila",
+    title: "ZK Motors | Used Cars in Wah Cantt",
     description,
     images: ["/og-image.jpg"],
   },
@@ -73,7 +73,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#181b21",
+  /* Tints the browser chrome on mobile. This is a literal, not a token read —
+     `viewport` is evaluated outside the CSS pipeline, so it cannot see @theme.
+     Keep it in step with --color-ink-950 by hand. */
+  themeColor: "#242424",
 };
 
 /**

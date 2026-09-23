@@ -44,7 +44,7 @@ export function Hero() {
       <Container>
         <div className="flex max-w-2xl flex-col gap-7 py-16 sm:py-20 lg:py-24">
           <p className="text-eyebrow text-accent-300">
-            Trusted car dealership in Wah Cantt &amp; Taxila
+            Trusted used-car dealership in Wah Cantt
           </p>
 
           <h1 className="text-4xl leading-[1.08] text-bone-50 sm:text-5xl lg:text-[3.5rem]">
@@ -104,7 +104,7 @@ export function Hero() {
             ))}
             <li className="flex items-center gap-2 text-sm text-bone-200">
               <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-400" />
-              Serving {siteConfig.serviceArea}
+              Showroom in {siteConfig.basedIn}
             </li>
           </ul>
         </div>

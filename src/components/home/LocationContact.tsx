@@ -43,7 +43,7 @@ export function LocationContact() {
             <SectionHeading
               eyebrow="Visit us"
               title="Find us in Wah Cantt"
-              description={`We serve buyers and sellers across ${siteConfig.serviceArea}. Call ahead and we will have the car ready for you.`}
+              description={`Visit our showroom in ${siteConfig.basedIn}. Call ahead and we will have the car ready for you.`}
             />
 
             <dl className="flex flex-col gap-5">

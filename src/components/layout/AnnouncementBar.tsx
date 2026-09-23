@@ -15,7 +15,7 @@ export function AnnouncementBar() {
         <div className="flex h-11 items-center justify-between gap-4 text-[0.75rem] text-muted-dark sm:text-[0.8125rem]">
           <p className="flex min-w-0 items-center gap-1.5">
             <MapPin aria-hidden="true" className="size-3.5 shrink-0 text-accent-500" />
-            <span className="truncate">{siteConfig.serviceArea}</span>
+            <span className="truncate">{siteConfig.basedIn}</span>
           </p>
 
           <p className="hidden items-center gap-1.5 md:flex">

@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
      the listing does not actually have. */
   const description =
     `${vehicleFullTitle(vehicle)} for sale at ${siteConfig.name} in ` +
-    `${siteConfig.serviceArea}. ${formatMileage(vehicle.mileage)}, ` +
+    `${siteConfig.basedIn}. ${formatMileage(vehicle.mileage)}, ` +
     `${vehicle.transmission.toLowerCase()}, ${vehicle.fuel.toLowerCase()}, ` +
     `registered in ${vehicle.registrationCity}. Call or WhatsApp for details.`;
 
@@ -257,7 +257,7 @@ export default async function VehicleDetailPage({ params }: Params) {
 
       <SimilarVehicles vehicles={similar} />
 
-      {/* Closing band. Kept to the buying path — cobalt and WhatsApp only. The
+      {/* Closing band. Kept to the buying path — accent blue and WhatsApp only. The
           red sell CTA is reserved for the two places the client asked for it,
           and a third red button here would dilute that. */}
       <section className="border-t border-bone-200 bg-bone-50 py-16 sm:py-20">

@@ -17,9 +17,9 @@ import { defaultFilters, parseFilters, selectVehicles } from "@/lib/inventory";
 import { AVAILABILITY } from "@/lib/vehicle";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
-const title = "Used Cars for Sale in Wah Cantt & Taxila";
+const title = "Used Cars for Sale in Wah Cantt";
 const description =
-  "Browse the full ZK Motors inventory of used cars in Wah Cantt and Taxila. Filter by make, budget, model year, transmission and body type, with mileage and asking price on every listing.";
+  "Browse the full ZK Motors inventory of used cars. Filter by make, budget, model year, transmission and body type, with mileage and asking price on every listing.";
 
 export const metadata: Metadata = {
   title,
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "ZK Motors — used cars in Wah Cantt and Taxila",
+        alt: "ZK Motors — used cars in Wah Cantt",
       },
     ],
   },

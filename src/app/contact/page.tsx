@@ -9,9 +9,11 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { directionsUrl, siteConfig, siteUrl } from "@/config/site";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
-const title = "Contact ZK Motors — Wah Cantt & Taxila";
+/* No brand name here: layout.tsx's title template already appends "| ZK Motors",
+   so "Contact ZK Motors — …" rendered as "… | ZK Motors | ZK Motors". */
+const title = "Contact Us — Wah Cantt";
 const description =
-  "Showroom address, opening hours, phone and WhatsApp for ZK Motors in Wah Cantt. Serving buyers and sellers across Wah Cantt, Taxila and nearby areas.";
+  "Showroom address, opening hours, phone and WhatsApp for ZK Motors in Wah Cantt, Punjab.";
 
 export const metadata: Metadata = {
   title,
@@ -135,7 +137,7 @@ export default function ContactPage() {
             <div className="flex flex-col gap-8">
               <SectionHeading
                 title="Where to find us"
-                description={`Serving buyers and sellers across ${siteConfig.serviceArea} and the surrounding towns.`}
+                description={`Our showroom is in ${siteConfig.basedIn}. Call ahead and we will have the car ready for you.`}
               />
 
               <dl className="flex flex-col gap-5">
@@ -170,7 +172,7 @@ export default function ContactPage() {
 
               <div>
                 <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-ink-400">
-                  Areas we cover
+                  Customers visit us from
                 </h3>
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {siteConfig.areasServed.map((area) => (

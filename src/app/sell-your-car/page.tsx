@@ -9,7 +9,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { directionsUrl, siteConfig, siteUrl } from "@/config/site";
 import { buildWhatsAppUrl, sellEnquiryMessage } from "@/lib/whatsapp";
 
-const title = "Sell or Exchange Your Car in Wah Cantt & Taxila";
+const title = "Sell or Exchange Your Car";
 const description =
   "Sell your car to ZK Motors or exchange it for something in the inventory. Send the make, model year, mileage and condition, and get a response during opening hours — no obligation.";
 
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
  *
  * This is the one page where the signal red carries the whole surface rather
  * than marking a single section: it is the selling path end to end, so the
- * eyebrows, the numbers and the primary action are all red. Cobalt does not
+ * eyebrows, the numbers and the primary action are all red. Accent blue does not
  * appear except where a genuinely neutral action is needed.
  *
  * The page does not quote a figure, promise a turnaround, or claim to inspect

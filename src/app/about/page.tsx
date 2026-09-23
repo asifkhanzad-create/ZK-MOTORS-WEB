@@ -8,7 +8,9 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { aboutIsPlaceholder, directionsUrl, siteConfig, siteUrl } from "@/config/site";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
-const title = "About ZK Motors — Used Cars in Wah Cantt & Taxila";
+/* No brand name here: layout.tsx's title template already appends "| ZK Motors",
+   so "About ZK Motors — …" rendered as "… | ZK Motors | ZK Motors". */
+const title = "About Us — Used Cars in Wah Cantt";
 const description =
   "ZK Motors is a used-car dealership in Wah Cantt that sells cars, buys cars outright and takes cars in exchange. What we list, what we cover, and what we do not claim.";
 

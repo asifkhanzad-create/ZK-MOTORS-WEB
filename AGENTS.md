@@ -5,8 +5,27 @@ Entry point for any coding agent working in this repo. Read this first, then
 
 ## What this is
 
-Website for **ZK Motors**, a used-car dealership in Wah Cantt & Taxila, Punjab,
-Pakistan. Next.js 16 (App Router) + TypeScript (strict) + Tailwind CSS v4.
+Website for **ZK Motors**, a used-car dealership with a showroom in Wah Cantt,
+Punjab, Pakistan. Next.js 16 (App Router) + TypeScript (strict) + Tailwind CSS v4.
+
+**Where the business is vs. who it deals with — do not conflate them.** The
+showroom is in Wah Cantt and saying so is correct and useful. The business is
+*not* confined to Wah Cantt and Taxila, and the copy must never read as though it
+is. The client raised this directly after the site repeatedly said things like
+"serving buyers and sellers across Wah Cantt & Taxila". Concretely:
+
+- Use `siteConfig.basedIn` for *where we are* ("our showroom in …", "visit us in …").
+- Never attach a place to a verb about trading ("we buy and sell in X") or to who
+  we serve ("serving X", "areas we cover", "local to X").
+- `siteConfig.areasServed` is a **reach list** — places customers travel from. It
+  feeds the contact-page pills and the structured data, and it is deliberately
+  wider than the showroom town.
+- "Taxila" is still legitimate as a city facet derived from stock, as a vehicle
+  registration city, as a testimonial author's city, and in the `areaServed`
+  list. It is the *boundary framing* that is banned, not the word.
+- `qa/qa-sell.mjs` enforces this: it scans the visible text of five pages for the
+  banned phrasings and fails if any return, with a canary assertion so the scan
+  cannot pass on a blank page.
 
 **The goal is enquiries, not traffic.** In priority order: phone calls, WhatsApp
 messages, showroom visits. The design, copy and SEO all exist to serve that. A
@@ -50,12 +69,17 @@ Known gaps as of the last session:
   detail gallery.
 - `VehicleGallery`'s multi-photo thumbnail rail has never run — every listing has
   exactly one photo, so `gallery` is empty everywhere.
-- Every business detail in `src/config/site.ts` is invented and marked
-  `PLACEHOLDER`. **This is now load-bearing:** the phone number
-  `+92 300 000 0000` is what every WhatsApp CTA and the sell form's composed
-  message are built from, so a real number has to land before real customers do.
+- **The phone number is real now** (`+92 312 5935682`, supplied by the client, one
+  number for both calls and WhatsApp). Everything else in
+  `src/config/site.ts` is still invented and marked `PLACEHOLDER` — the email,
+  the street address, the opening hours, the social URLs and the logo. The number
+  is load-bearing: every WhatsApp CTA and the sell form's composed message are
+  built from it, and it appears in the structured data, so changing it means
+  changing all three fields together (`phoneDisplay` / `phoneE164` /
+  `whatsappNumber`). `qa/qa-detail.mjs` pins the E.164 value; `qa/qa-sell.mjs`
+  asserts the dialled and WhatsApp numbers agree.
 - The navbar's current-page pill is `bone-50`, which contradicts the documented
-  "cobalt = nav active state" rule. It reads well, but it is an exception nobody
+  "accent = nav active state" rule. It reads well, but it is an exception nobody
   has signed off. Raise it.
 - **The site has never been deployed.** There is no hosting config of any kind —
   no `vercel.json`, no workflow. It runs only on a local `next start`. For a site
@@ -127,32 +151,55 @@ These came from the user directly and are not up for reinterpretation.
 
 **Two accents, and the rule matters more than the hues:**
 
-- `accent-*` (cobalt blue) — the **buying** path: primary CTAs, eyebrows, focus
-  rings, icons.
-- `signal-*` (red) — the **selling** path and attention: the Sell/Exchange
-  section, the hero's Sell CTA, the Reserved status badge.
+- `accent-*` (sky blue, `#4cc2ff` at 400) — the **buying** path: primary CTAs,
+  eyebrows, focus rings, icons.
+- `signal-*` (red, `#c94438` at 500) — the **selling** path and attention: the
+  Sell/Exchange section, the hero's Sell CTA, the Reserved status badge.
 
 Blue = buying, red = selling. Putting red somewhere that isn't the selling path
 or a genuine attention state makes the system meaningless.
 
+**Name things after the token family, never the hue.** The accent has already
+moved once (cobalt `#5fa0e8` -> sky `#4cc2ff`) and the base twice. Anything named
+for a colour goes stale silently: `SectionHeading`'s prop values used to read
+`"cobalt" | "signal"` and now read `"accent" | "signal"`. Do not reintroduce a
+hue name into an identifier.
+
+**Derived colours must move with the base.** Two surfaces do not read a token
+directly — they are `ink-950` at some alpha, so they change whenever the base
+does, and nothing will tell you:
+
+| Surface | Value | Why it is fragile |
+|---|---|---|
+| Status badge scrim | `bg-ink-950/95` | composites over **white** → `#2f2f2f`; the alpha is asserted in `verify_theme.py` against that literal |
+| Navbar capsule | `bg-ink-950/92` | composites over **bone-50** → `#353535`; `qa-nav.mjs` reads the alpha off the rendered class |
+
+Both alphas had to be raised when the base went `#181b21` -> `#242424`: at 90%
+and 85% respectively the lighter ink composited lighter, and the navbar links
+fell to **4.46:1** against a 4.5 requirement. That is the failure mode — a
+*lighter* base lowers the contrast of everything sitting on it, including the
+things that look unrelated. Also literal, also needs hand-updating:
+`themeColor` in `layout.tsx`, the three `rgba()` glows (Button, Wordmark,
+MapPlaceholder), and every constant in `scripts/generate_brand_assets.py`.
+
 **One exception, and it is deliberate: the navbar's current-page marker is
-near-white, not cobalt.** It is the only place where "current page" used to be
-cobalt (an underline) and now is not. On `/cars` the current pill sits a few
-hundred pixels from the cobalt "Find a Car" button in the same capsule, and both
-point at `/cars`; two cobalt pills read as a mistake. `bone-50` on `ink-950`
-says "you are here" (16.5:1) while cobalt says "click me". Do not "restore" it
-to cobalt without asking.
+near-white, not the accent.** It is the only place where "current page" used to
+be the accent (an underline) and now is not. On `/cars` the current pill sits a
+few hundred pixels from the blue "Find a Car" button in the same capsule, and
+both point at `/cars`; two blue pills read as a mistake. `bone-50` on `ink-950`
+says "you are here" (14.9:1) while blue says "click me". Do not "restore" it to
+the accent without asking.
 
 **The sell CTAs are filled red, not outlined — the client asked for this twice.**
 The hero's "Sell Your Car" and the `/cars` closing band's "Sell or exchange
 yours" both use `variant="primarySignal"` (`bg-signal-500` + white text). The
-hero therefore shows **two filled buttons side by side** (cobalt Browse, red
+hero therefore shows **two filled buttons side by side** (blue Browse, red
 Sell). That is intentional. It looks like a hierarchy problem, and on a generic
 site it would be one — do not "fix" it back to an outline without asking.
 `qa/qa-inventory.mjs` asserts the hero button's computed background is
 `rgb(201, 68, 56)` and its label is white, so a revert fails the suite.
 `outlineSignal` still exists for the case where a signal action must sit
-*subordinate* to a cobalt primary; it currently has no usages.
+*subordinate* to an accent primary; it currently has no usages.
 
 **Explicitly avoid:** generic template look, excessive glassmorphism, too many
 gradients, neon, overdone animation, huge hero text, unnecessary carousels, and
@@ -176,10 +223,11 @@ file header, along with the five deliberate departures from it). The user
 supplied that design and asked for it, so **the capsule, the solid active pill
 and the dropped mobile card are the design, not a suggestion.**
 
-- **The capsule carries an 85% `ink-950` scrim** (`bg-ink-950/85`), not the
+- **The capsule carries a 92% `ink-950` scrim** (`bg-ink-950/92`), not the
   demo's `bg-white/6`. The demo sits on a permanently dark page; this site
   alternates. Over a `bone-50` band the demo's version measures **1.00:1** — the
-  capsule and its labels both vanish.
+  capsule and its labels both vanish. The alpha is part of the palette, not a
+  free styling choice — see "Derived colours" under Design rules.
 - **The header is exactly 86px, published as `--spacing-nav`.** Everything that
   sticks below it — `InventoryToolbar`, the `/cars` filter rail, the detail
   enquiry panel — offsets by that token, never by a literal. `qa/qa-nav.mjs`
@@ -231,7 +279,7 @@ npm run build && npm run start
 node qa/qa-nav.mjs       http://localhost:3000   # 62 assertions
 node qa/qa-inventory.mjs http://localhost:3000   # 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # 62 assertions
-node qa/qa-sell.mjs      http://localhost:3000   # 109 assertions
+node qa/qa-sell.mjs      http://localhost:3000   # 123 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # 10 assertions
 ```
 
@@ -273,7 +321,7 @@ they were linked from every page and all four 404ed. Three things to know:
 surface rather than marking a section — it is the selling path end to end, so
 the eyebrow, the step numbers and the primary action are all red. This is why
 `SectionHeading` grew an `accent` prop; without it the eyebrow was hardcoded
-cobalt and the page read as browsing.
+to the blue and the page read as browsing.
 
 **There is no backend until Phase 5, so the form does not POST anywhere.**
 `ValuationForm` composes a WhatsApp message from what the visitor typed, opens
@@ -369,11 +417,13 @@ Two smaller things worth keeping:
 - **A translucent badge over photography has no controlled backdrop.** The status
   badges were tinted chips (`bg-status-available/12`), which just inherits
   whatever is behind them: measured **1.52:1** where the AVAILABLE badge sat over
-  the bright sky in the Prado photo. They now carry a 90% `ink-950` scrim, which
-  composites to `#2f3237` over a white pixel and clears 4.5:1 for all three
+  the bright sky in the Prado photo. They now carry a 95% `ink-950` scrim, which
+  composites to `#2f2f2f` over a white pixel and clears 4.5:1 for all three
   labels. Checked in `verify_theme.py` (analytically) and
   `qa/measure-badge.mjs` + `scripts/measure_badge_contrast.py` (from the rendered
   pixels). If you add another badge over a photo, give it a scrim too.
+  **The alpha moved 90% -> 95% when the base lightened** — the scrim is a derived
+  colour, so it is not independent of `ink-950`.
 - **Don't string-match Tailwind class names in a test.** `primarySignal`'s base
   classes include `transition-[background-color,border-color,color,...]`, so a
   `/border/` test reports an outline that isn't there — it cost a false failure.

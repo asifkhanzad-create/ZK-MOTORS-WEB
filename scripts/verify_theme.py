@@ -100,12 +100,16 @@ CHECKS: list[tuple[str, str, str, float]] = [
     # Status badges sit over arbitrary vehicle photography, so their backdrop is
     # the one thing this codebase cannot control. Worst case is a pure-white
     # photo pixel (a white car, an overcast sky). The badge scrim is ink-950 at
-    # 90%, which composites to #2f3237 over white — that is the value checked
+    # 95%, which composites to #2f2f2f over white — that is the value checked
     # here. Measured 1.33:1 before the scrim was added, because a 12% tint just
     # inherits whatever is behind it.
-    ("available badge over white photo", "status-available", "#2f3237", 4.5),
-    ("reserved badge over white photo", "status-reserved", "#2f3237", 4.5),
-    ("sold badge over white photo", "status-sold", "#2f3237", 4.5),
+    #
+    # This constant is DERIVED from the ink-950 token and the alpha in
+    # StatusBadge.tsx. Change either one and this must change with it, or the
+    # check silently measures a colour the site no longer renders.
+    ("available badge over white photo", "status-available", "#2f2f2f", 4.5),
+    ("reserved badge over white photo", "status-reserved", "#2f2f2f", 4.5),
+    ("sold badge over white photo", "status-sold", "#2f2f2f", 4.5),
 ]
 
 

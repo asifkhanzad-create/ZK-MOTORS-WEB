@@ -13,10 +13,26 @@ export const siteConfig = {
   name: "ZK Motors",
   /** Shown in the footer and used in structured data. */
   legalName: "ZK Motors",
-  tagline: "Used Cars in Wah Cantt & Taxila",
+  tagline: "Used Cars in Wah Cantt",
 
-  /** Primary service area — referenced in copy and structured data. */
-  serviceArea: "Wah Cantt & Taxila, Punjab",
+  /**
+   * Where the SHOWROOM is. This is not a service boundary.
+   *
+   * This field used to be called `serviceArea` and read "Wah Cantt & Taxila,
+   * Punjab", which made the copy say things like "serving buyers and sellers
+   * across Wah Cantt & Taxila" — i.e. that the business only trades there. The
+   * showroom is in Wah Cantt; the business is not confined to it. Use this for
+   * *where we are* only, and never attach it to a verb about trading
+   * ("we buy and sell in X") or to who we serve ("serving X").
+   */
+  basedIn: "Wah Cantt, Punjab",
+
+  /**
+   * Places customers actually travel from. A reach list, not a limit — it feeds
+   * the contact-page pills, `areaServed` in the structured data, and the city
+   * dropdown on the sell form (which appends "Somewhere else", so a visitor
+   * from anywhere else can still submit).
+   */
   areasServed: [
     "Wah Cantt",
     "Taxila",
@@ -28,13 +44,18 @@ export const siteConfig = {
 
   contact: {
     /**
-     * PLACEHOLDER — replace with the real showroom number.
-     * `display` is what visitors see; `e164` is used for tel: and wa.me links.
+     * The real showroom number, supplied by the client. One number for both
+     * voice calls and WhatsApp.
+     *
+     * `display` is what visitors see; `e164` is used for `tel:` and wa.me links.
+     * Local form is 0312 5935682 — strip the leading 0 and prefix +92.
+     * All three fields must stay in step: `qa/qa-detail.mjs` pins the E.164
+     * value and `qa/qa-sell.mjs` asserts the tel: and wa.me links agree.
      */
-    phoneDisplay: "+92 300 000 0000",
-    phoneE164: "+923000000000",
-    /** PLACEHOLDER — WhatsApp number in international format, digits only. */
-    whatsappNumber: "923000000000",
+    phoneDisplay: "+92 312 5935682",
+    phoneE164: "+923125935682",
+    /** WhatsApp number in international format, digits only — no `+`. */
+    whatsappNumber: "923125935682",
     /** PLACEHOLDER — replace with the real inbox. */
     email: "info@zkmotors.pk",
   },

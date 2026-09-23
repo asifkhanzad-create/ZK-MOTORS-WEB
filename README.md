@@ -1,6 +1,6 @@
 # ZK Motors — Website
 
-Used-car dealership website for **ZK Motors**, Wah Cantt & Taxila, Punjab, Pakistan.
+Used-car dealership website for **ZK Motors** — a showroom in Wah Cantt, Punjab, Pakistan.
 
 **Phase 1 (complete): homepage.** **Phase 2 (complete): the `/cars` inventory page with
 URL-driven filtering and sorting.** **Phase 3 (complete): the `/cars/{id}` vehicle detail
@@ -91,10 +91,14 @@ current page, and a card that drops out of the capsule below `lg`.
 
 Four things about it are load-bearing:
 
-- **The capsule carries an 85% `ink-950` scrim**, not the demo's `bg-white/6`. The demo sits
+- **The capsule carries a 92% `ink-950` scrim**, not the demo's `bg-white/6`. The demo sits
   on a permanently dark page; this site alternates dark and light bands. Over a `bone-50`
   section the demo's version measures **1.00:1** — the capsule and its labels both vanish.
-  Measured with the scrim in place: 10.6:1 for the wordmark and 8.1:1 for the links.
+  Measured with the scrim in place: **11.74:1** for the wordmark and **5.62:1** for the links.
+  The alpha was 85% until the base lightened to `#242424`; at 85% the links fell to 4.46:1,
+  just under the 4.5 requirement. The scrim is a *derived* colour, so it has to move with the
+  base — `qa/qa-nav.mjs` reads the alpha off the rendered class and recomputes, which is how
+  the regression was caught rather than shipped.
 - **The header is exactly 86px**, published as `--spacing-nav` in `globals.css`. The results
   toolbar, the `/cars` filter rail and the detail-page enquiry panel all offset by
   `top-nav` / `calc(var(--spacing-nav) + 1rem)` rather than by a literal, so the header can
@@ -110,9 +114,9 @@ Four things about it are load-bearing:
   honours `prefers-reduced-motion`. `qa/qa-nav.mjs` samples `scrollY` mid-flight, so a jump
   cannot pass as an animation.
 
-The current-page pill is **near-white rather than the accent cobalt** — the one place the
+The current-page pill is **near-white rather than the accent blue** — the one place the
 two-accent rule is deliberately not applied. On `/cars` the current pill sits inches from the
-cobalt "Find a Car" button and both point at `/cars`; two cobalt pills read as a mistake.
+blue "Find a Car" button and both point at `/cars`; two blue pills read as a mistake.
 
 ### The page cross-fade
 
@@ -170,12 +174,17 @@ The palette uses **two** accent colours, and the rule matters more than the hues
 
 | Accent | Token | Used for |
 |---|---|---|
-| Cobalt blue | `accent-*` | The buying path — primary CTAs, eyebrows, focus rings, icons |
-| Red | `signal-*` | The selling path and attention — the Sell/Exchange section, the hero's Sell CTA, the Reserved badge |
+| Sky blue (`#4cc2ff` at 400) | `accent-*` | The buying path — primary CTAs, eyebrows, focus rings, icons |
+| Red (`#c94438` at 500) | `signal-*` | The selling path and attention — the Sell/Exchange section, the hero's Sell CTA, the Reserved badge |
 
 Blue = buying, red = selling. If you add red somewhere that isn't the selling path or a
 genuine attention state, the system stops meaning anything. The one exception is the navbar's
 current-page pill, which is near-white — see [The navbar](#the-navbar).
+
+**Name identifiers after the token family, not the hue.** The accent has already moved once
+(cobalt `#5fa0e8` → sky `#4cc2ff`) and the base twice (`#0a0b0d` → `#181b21` → `#242424`).
+`SectionHeading`'s prop values were `"cobalt" | "signal"` and are now `"accent" | "signal"`,
+because a hue name goes stale the moment the palette moves and nothing warns you.
 
 Colour changes are load-bearing — lightening the charcoal lowers the contrast of everything
 on it. After changing any token, run:
@@ -187,10 +196,49 @@ python scripts/verify_theme.py
 It parses the real `@theme` block and checks 32 foreground/background pairs that exist in
 the components, exiting non-zero if any fails.
 
+**Some colours are derived, and tokens cannot reach them.** Four places hold literal values
+that must be updated by hand, and two of them are `ink-950` at an alpha — so they change
+whenever the base does, whether or not you touched them:
+
+| What | Where | Depends on |
+|---|---|---|
+| Badge scrim alpha | `StatusBadge.tsx` (`bg-ink-950/95`) | the base — composites over white |
+| Navbar capsule alpha | `Header.tsx` (`bg-ink-950/92`) | the base — composites over `bone-50` |
+| Browser theme colour | `layout.tsx` (`themeColor`) | the base — outside the CSS pipeline |
+| Glows + brand assets | 3 × `rgba()` shadows, `generate_brand_assets.py` | the accent |
+
+When the base went `#181b21` → `#242424` both alphas had to be raised; at 90% and 85% the
+lighter ink composited lighter and the navbar links fell to **4.46:1** against a 4.5
+requirement. Run `qa/qa-nav.mjs` and `qa/measure-badge.mjs` after any base change, then
+re-run `scripts/generate_brand_assets.py`.
+
 Note the primary button is `bg-accent-400` with **dark** text. That is what forces the
 accent to stay light — a deep accent would need the button switched to white text, which
 means editing `Button.tsx`, the skip link in `layout.tsx`, the map pin in
-`LocationContact.tsx` and the `Wordmark` monogram.
+`MapPlaceholder.tsx` and the `Wordmark` monogram.
+
+### Where the business is, and who it deals with
+
+These are two different things and the copy used to conflate them. The site said things
+like *"serving buyers and sellers across Wah Cantt & Taxila"* and *"Areas we cover"*, which
+made a business with one showroom look like it only traded in those two towns. The client
+raised it directly: **the showroom is in Wah Cantt — say so — but never imply that is the
+limit of where we trade or who we deal with.**
+
+| Field | Means | Use it for |
+|---|---|---|
+| `siteConfig.basedIn` | Where the showroom is | "our showroom in …", "visit us in …" |
+| `siteConfig.areasServed` | Places customers travel from — a reach list, not a boundary | the contact-page pills, `areaServed` in the structured data, the sell form's city dropdown |
+
+**Never** attach a place to a verb about trading ("we buy and sell in X") or to who is
+served ("serving X", "areas we cover", "local to X"). `basedIn` used to be called
+`serviceArea` and read "Wah Cantt & Taxila, Punjab" — the name is what invited the
+limiting sentences, which is why it was renamed rather than just re-valued.
+
+"Taxila" is still correct in several places and is **not** banned: it is a city facet
+derived from stock, a vehicle registration city, a testimonial author's city, and an entry
+in `areasServed`. The *boundary framing* is what is banned. `qa/qa-sell.mjs` scans the
+visible text of five pages and fails if any banned phrasing returns.
 
 ---
 
@@ -247,7 +295,7 @@ qa/
   qa-nav.mjs                 site-wide header harness; 62 assertions
   qa-inventory.mjs           Phase 2 harness; 47 assertions
   qa-detail.mjs              Phase 3 harness; 62 assertions
-  qa-sell.mjs                Phase 4 + supporting pages; 109 assertions
+  qa-sell.mjs                Phase 4 + supporting pages + copy guard; 123 assertions
   measure-badge.mjs          clips a badge to its DOM box for the contrast script
   probe-404.mjs              one-off: which routes emit a React page error
   probe-header.mjs           one-off: header height + what overflows a viewport
@@ -278,7 +326,7 @@ NODE_OPTIONS= npm run build && npm run start   # in one terminal
 node qa/qa-nav.mjs       http://localhost:3000   # header — 62 assertions
 node qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # Phase 3 — 62 assertions
-node qa/qa-sell.mjs      http://localhost:3000   # Phase 4 + the 4 supporting pages — 109 assertions
+node qa/qa-sell.mjs      http://localhost:3000   # Phase 4 + the 4 supporting pages — 123 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only on route changes
 ```
 
@@ -309,23 +357,27 @@ rendered pixels.
 
 ### 1. Business details — `src/config/site.ts`
 
-Everything below is invented and must be replaced. This is the **only** file you need
-to edit for contact details; nothing is hard-coded in components.
+Everything below is invented and must be replaced — **except the phone number, which is
+real**. This is the **only** file you need to edit for contact details; nothing is
+hard-coded in components.
 
-| Field | Current placeholder |
+| Field | Value |
 |---|---|
-| `contact.phoneDisplay` | `+92 300 000 0000` |
-| `contact.phoneE164` | `+923000000000` |
-| `contact.whatsappNumber` | `923000000000` (digits only, no `+`) |
-| `contact.email` | `info@zkmotors.pk` |
-| `address.street` | `Main G.T. Road` |
-| `address.postalCode` | `47040` |
-| `hours.display` / `hours.short` | `Mon – Sat, 9:00 AM – 8:00 PM` |
+| `contact.phoneDisplay` | `+92 312 5935682` — **real** |
+| `contact.phoneE164` | `+923125935682` — **real** |
+| `contact.whatsappNumber` | `923125935682` (digits only, no `+`) — **real** |
+| `contact.email` | `info@zkmotors.pk` — placeholder |
+| `address.street` | `Main G.T. Road` — placeholder |
+| `address.postalCode` | `47040` — placeholder |
+| `hours.display` / `hours.short` | `Mon – Sat, 9:00 AM – 8:00 PM` — placeholder |
 | `social.facebook` / `instagram` / `youtube` | `null` — icons appear automatically once a URL is set |
 | `NEXT_PUBLIC_SITE_URL` (env) | defaults to `https://zkmotors.pk` |
 
 The phone number drives every `tel:` link, the WhatsApp number drives every `wa.me`
-link, and both feed the `AutoDealer` structured data.
+link, and both feed the `AutoDealer` structured data. **All three phone fields must be
+changed together** — the local number is `0312 5935682`, so strip the leading `0` and
+prefix `+92`. `qa/qa-detail.mjs` pins the E.164 value and `qa/qa-sell.mjs` asserts the
+dialled number and the WhatsApp number agree, so a half-done change fails the suite.
 
 ### 2. Vehicle photography — `public/vehicles/`
 

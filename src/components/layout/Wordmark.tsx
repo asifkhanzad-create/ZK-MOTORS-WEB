@@ -25,7 +25,7 @@ export function Wordmark({
     <span className={cn("flex items-center gap-2.5", className)}>
       <span
         aria-hidden="true"
-        className="grid size-9 shrink-0 place-items-center rounded-[0.6rem] bg-gradient-to-br from-accent-300 to-accent-500 font-display text-[0.8125rem] font-extrabold tracking-tight text-ink-950 shadow-[0_2px_10px_-2px_rgba(95,160,232,0.5)]"
+        className="grid size-9 shrink-0 place-items-center rounded-[0.6rem] bg-gradient-to-br from-accent-300 to-accent-500 font-display text-[0.8125rem] font-extrabold tracking-tight text-ink-950 shadow-[0_2px_10px_-2px_rgba(76,194,255,0.5)]"
       >
         ZK
       </span>

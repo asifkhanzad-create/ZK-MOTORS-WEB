@@ -17,7 +17,7 @@ const detailsToShare = [
 /**
  * The one section that carries the signal-red accent. Red is reserved for the
  * selling/exchange path, so this section reads as a distinct business line
- * rather than as decoration on top of the cobalt one.
+ * rather than as decoration on top of the blue one.
  */
 export function SellExchange() {
   const whatsappUrl = buildWhatsAppUrl(sellEnquiryMessage);

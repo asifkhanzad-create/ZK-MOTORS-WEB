@@ -204,6 +204,15 @@ await goToForm();
   const honesty = await page.getByText(/nothing is sent until you press send/i).count();
   check(honesty > 0, "the page says plainly that nothing is sent from here");
 
+  /* Read every dialable number BEFORE submitting. The number lives in three
+     config fields (display / E.164 / WhatsApp digits) and a visitor only ever
+     sees the display one — if they drift, the site shows one number and dials
+     another, and nothing else would catch it. */
+  const telNumbers = await page
+    .locator('a[href^="tel:"]')
+    .evaluateAll((els) => els.map((el) => (el.getAttribute("href") ?? "").replace("tel:", "")));
+  const uniqueTel = [...new Set(telNumbers)];
+
   await page.locator('[name="make"]').fill("Toyota");
   await page.locator('[name="model"]').fill("Corolla Altis Grande");
   await page.locator('[name="year"]').fill("2019");
@@ -225,6 +234,20 @@ await goToForm();
 
   const url = opened[0] ?? "";
   check(url.startsWith("https://wa.me/"), "the link is a wa.me deep link", url.slice(0, 40));
+
+  const waNumber = url.replace("https://wa.me/", "").split("?")[0];
+  check(/^\d{10,15}$/.test(waNumber), "the WhatsApp number is digits-only — no +, spaces or dashes", waNumber);
+  check(waNumber.startsWith("92"), "the WhatsApp number carries Pakistan's country code", waNumber);
+  check(
+    uniqueTel.length === 1,
+    "every tel: link on the page dials the same number",
+    uniqueTel.length ? uniqueTel.join(", ") : `${telNumbers.length} tel: links found`,
+  );
+  check(
+    uniqueTel.length === 1 && uniqueTel[0] === `+${waNumber}`,
+    "the dialled number and the WhatsApp number agree",
+    `tel ${uniqueTel[0] ?? "none"} vs wa ${waNumber}`,
+  );
 
   const text = decodeURIComponent(new URL(url).searchParams.get("text") ?? "");
   const expectations = [
@@ -367,6 +390,39 @@ for (const { path, jsonLd, notice } of SUPPORTING) {
        as fact. A redesign that drops one turns a placeholder into a claim. */
     const text = await page.locator("main").innerText();
     check(notice.test(text), `${path}: still carries its "${notice.source}" notice`);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The client asked for this explicitly: the showroom is in Wah Cantt, and
+   saying so is fine, but nothing may read as a *service boundary* — the copy
+   used to say "serving buyers and sellers across Wah Cantt & Taxila", which
+   made the business look like it only traded in those two towns.
+   "Taxila" alone is NOT banned: it is legitimate as a city facet derived from
+   stock, as a vehicle registration city, as a testimonial author's city, and
+   in the `areaServed` reach list. Only the boundary framing is. */
+console.log("\n== Copy must not read as a service boundary ==");
+{
+  const BANNED = [
+    [/Areas we cover/i, "a coverage heading"],
+    [/and nearby areas/i, "a coverage limit"],
+    [/serving Wah Cantt/i, "frames who we serve as local-only"],
+    [/Local to Wah Cantt/i, "frames the business as local-only"],
+    [/Wah Cantt & Taxila/i, "names a second base the showroom is not at"],
+    [/in Wah Cantt and Taxila/i, "names a second base the showroom is not at"],
+  ];
+
+  for (const path of ["/", "/cars", "/contact", "/about", "/sell-your-car"]) {
+    await page.goto(`${BASE}${path}`, { waitUntil: "load" });
+    /* innerText is rendered text only, so the JSON-LD `areaServed` list and the
+       meta keywords — both of which legitimately name Taxila — are excluded. */
+    const text = await page.evaluate(() => document.body.innerText);
+    const hits = BANNED.filter(([pattern]) => pattern.test(text)).map(([pattern, why]) => `${pattern.source} → ${why}`);
+    check(hits.length === 0, `${path}: no service-boundary copy`, hits.join("; "));
+    /* Positive control. Without this the whole section passes on a blank page —
+       every pattern trivially fails to match and nothing is actually tested.
+       "Wah Cantt" is on every page via the footer, so it is a reliable canary. */
+    check(/Wah Cantt/.test(text), `${path}: the canary copy is present, so the scan is real`, `${text.length} chars of visible text`);
   }
 }
 

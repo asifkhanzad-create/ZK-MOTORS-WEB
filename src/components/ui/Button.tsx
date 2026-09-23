@@ -24,15 +24,17 @@ const base =
 
 /*
  * Two accents, two jobs — this is the whole colour system in one place.
- *   accent-* (cobalt)  = the buying path: browsing, primary calls to action
- *   signal-* (red)     = the selling path and anything that needs attention
+ *   accent-* (sky blue) = the buying path: browsing, primary calls to action
+ *   signal-* (red)      = the selling path and anything that needs attention
  * The glows are literal rgba() rather than token reads, so they have to be
- * updated by hand whenever the accent ramp changes.
+ * updated by hand whenever the accent ramp changes. They currently encode
+ * accent-400 #4cc2ff = rgba(76,194,255). Search the repo for that triple
+ * after any accent change — Button, Wordmark and MapPlaceholder each hold one.
  */
 const variants: Record<ButtonVariant, string> = {
-  /* Primary accent action — cobalt. Reads correctly on both surfaces. */
+  /* Primary accent action. Reads correctly on both surfaces. */
   primary:
-    "bg-accent-400 text-ink-950 hover:bg-accent-300 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_8px_24px_-12px_rgba(95,160,232,0.65)]",
+    "bg-accent-400 text-ink-950 hover:bg-accent-300 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_8px_24px_-12px_rgba(76,194,255,0.65)]",
   /* Signal action — the sell/exchange path, where red carries the section.
      Deeper fill with white text rather than signal-400 with dark text: at the
      lighter weight the red read as salmon beside the WhatsApp green, and a
@@ -51,10 +53,11 @@ const variants: Record<ButtonVariant, string> = {
   /* Subordinate signal action. Currently unused: the hero's Sell CTA was moved
      to `primarySignal` at the client's request, and the /cars closing band uses
      it too. Kept because it is the only red treatment that stays legible on
-     charcoal while reading as *quieter* than a filled cobalt button beside it —
-     which is what you want if a sell action ever has to sit next to a cobalt
+     charcoal while reading as *quieter* than a filled blue button beside it —
+     which is what you want if a sell action ever has to sit next to an accent
      primary. Border is signal-400 rather than signal-500 so the control boundary
-     stays clearly visible on the charcoal surface (5.4:1). */
+     stays clearly visible on the charcoal surface (4.85:1 — it was 5.4:1 before
+     the base lightened to #242424). */
   outlineSignal:
     "border border-signal-400 text-signal-300 hover:bg-signal-500/15 hover:border-signal-300",
   ghost: "text-bone-50 hover:bg-white/8",

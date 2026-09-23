@@ -37,11 +37,14 @@ FONT_CANDIDATES = [
 ]
 
 # --- Palette: mirrors the @theme block in src/app/globals.css ---------------
-INK = (24, 27, 33)  # ink-950  #181b21
+# These are literals on purpose. Raster output cannot read CSS custom
+# properties, so every one of them has to be updated by hand when @theme
+# changes — and then this script re-run. Nothing will tell you they drifted.
+INK = (36, 36, 36)  # ink-950  #242424
 BONE = (250, 250, 249)  # bone-50  #fafaf9
 BONE_MUTED = (169, 176, 187)  # muted-dark #a9b0bb
-ACCENT_LIGHT = (156, 198, 242)  # accent-300 #9cc6f2
-ACCENT_MID = (47, 125, 208)  # accent-500 #2f7dd0
+ACCENT_LIGHT = (122, 203, 255)  # accent-300 #7acbff
+ACCENT_MID = (27, 143, 212)  # accent-500 #1b8fd4
 
 
 def font_path() -> str:
@@ -153,11 +156,14 @@ def build_og_image() -> None:
     font_word = load_font("Bold", 40)
     draw.text((80 + mark_size + 20, 88), "ZK Motors", font=font_word, fill=BONE)
 
-    # Eyebrow — cobalt, matching the section eyebrows on the site
+    # Eyebrow — accent blue, matching the section eyebrows on the site.
+    # Names the showroom's town only. It used to read
+    # "TRUSTED CAR DEALERSHIP · WAH CANTT & TAXILA", which read as a service
+    # boundary; the business is not confined to those two towns.
     font_eyebrow = load_font("SemiBold", 20)
     draw.text(
         (80, 214),
-        "TRUSTED CAR DEALERSHIP  ·  WAH CANTT & TAXILA",
+        "TRUSTED USED-CAR DEALERSHIP  ·  WAH CANTT",
         font=font_eyebrow,
         fill=ACCENT_LIGHT,
     )
