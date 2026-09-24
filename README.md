@@ -2,14 +2,27 @@
 
 Used-car dealership website for **ZK Motors** — a showroom in Wah Cantt, Punjab, Pakistan.
 
-**Phase 1 (complete): homepage.** **Phase 2 (complete): the `/cars` inventory page with
-URL-driven filtering and sorting.** **Phase 3 (complete): the `/cars/{id}` vehicle detail
-pages.** The site chrome was then replaced with a floating glass-pill navbar (see
-[The navbar](#the-navbar)). The sell-your-car flow, the Supabase backend and the admin
-dashboard are planned for later phases and are **not built yet**.
+**All six phases are built.** Homepage, the `/cars` inventory with URL-driven
+filtering, the `/cars/{id}` detail pages, the sell-your-car flow, the Supabase
+backend, and the admin dashboard at `/admin`. The site chrome is a floating
+glass-pill navbar (see [The navbar](#the-navbar)).
 
-> **All 14 detail pages are prerendered at build time** (`● SSG` in the build output). An
-> unknown slug renders the styled 404 rather than erroring.
+> **The admin dashboard needs three things set up in the Supabase dashboard before
+> it can be used** — an admin user, `0002_admin_access.sql`, and sign-ups turned
+> off. See [The admin dashboard](#the-admin-dashboard).
+>
+> **All three setup items are now in place** (2026-09-24). `qa/probe-supabase.mjs` is
+> green **12/12**, including a hard assertion that `disable_signup = true` — confirmed
+> behaviourally as well, where a probe registration is refused with `signup_disabled`
+> and creates nothing.
+>
+> Items 1 and 2 still cannot be checked without signing in, so they remain *unverified*
+> until `qa/qa-admin-authenticated.mjs` has run. The unpublish step in it is the only
+> check anywhere that detects `0002_admin_access.sql` not having been applied.
+
+> **All 14 detail pages are prerendered from Supabase at build time** (`● SSG` in the build
+> output, revalidating every 5 minutes). An unknown slug renders the styled 404 rather than
+> erroring.
 
 ---
 
@@ -42,10 +55,10 @@ npm run typecheck  # tsc --noEmit
 | Styling | Tailwind CSS v4 — tokens in `src/app/globals.css` |
 | Icons | lucide-react (brand marks inlined from Simple Icons) |
 | Fonts | Montserrat (display + body), self-hosted via `next/font` |
-| Images | `next/image`, all local files under `public/vehicles/` |
+| Images | `next/image`, optimised from Supabase Storage — see `remotePatterns` in `next.config.ts` |
 
-No other runtime dependencies. The homepage is statically prerendered; `/cars` is
-server-rendered on demand because its filter state lives in the URL.
+No other runtime dependencies. The homepage is prerendered and revalidated every 5 minutes;
+`/cars` is server-rendered on demand because its filter state lives in the URL.
 
 ### How `/cars` filtering works
 
@@ -242,6 +255,150 @@ visible text of five pages and fails if any banned phrasing returns.
 
 ---
 
+### Supabase (Phase 5)
+
+The inventory is moving from the placeholder array in `src/data/vehicles.ts` to a Postgres
+table. Setup order matters, because the site must keep working at every step:
+
+> **Phase 5 is complete** (2026-09-24). Steps 1–5 below are done and verified — the table, RLS,
+> the bucket and the 14 photos all exist, and every `image` column holds a URL that resolves —
+> **and the app now reads them.** Nothing under `src/app` or `src/components` imports the
+> placeholder array any more; `src/data/vehicles.ts` survives only as the seed source.
+>
+> The visible "sample listing" notice is still on. That is correct — see
+> `inventoryIsPlaceholder` in `src/config/site.ts`.
+
+```bash
+cp .env.example .env.local     # then fill in the URL and publishable key
+node --env-file=.env.local qa/probe-supabase.mjs   # checks env, table, RLS, bucket
+```
+
+In the Supabase dashboard:
+
+1. **Run the migration** — SQL editor, paste the *contents* of
+   `supabase/migrations/0001_vehicles.sql`. Pasting the file's *path* is a `42601`
+   syntax error, which is an easy mistake to make. Same for every SQL step below:
+   the editor executes SQL text, not filenames, and it cannot run `node`.
+2. **Create a Storage bucket** named `vehicle-photos`, marked public. A private bucket
+   accepts the upload and then serves nothing, which presents as a failed upload —
+   `probe-supabase.mjs` checks for this explicitly.
+3. **Run the seed** — paste the contents of `supabase/seed.sql`. This leaves `image`
+   holding local `/vehicles/...` paths, which resolve from `public/` and so keep the
+   site working the moment the data layer is switched over.
+4. **Upload the 14 stock photos** to the `vehicle-photos` bucket (Storage →
+   `vehicle-photos` → Upload files). Exactly the 14 vehicle photos — *not*
+   `hero-showroom.jpg` or `sell-exchange.jpg`, which are design assets referenced by
+   `Hero.tsx` and `SellExchange.tsx` and stay in `public/`.
+5. **Repoint the rows** — paste the contents of `supabase/seed-storage.sql`, which
+   rewrites those 14 `image` values to Storage public URLs. Run it only once the
+   upload in step 4 is complete; before that it would 404 every image on the site.
+
+Steps 4 and 5 are a matched pair, and `qa/probe-supabase.mjs` is the gate between
+them — it fails while any photo is missing.
+
+Then `node --env-file=.env.local qa/probe-supabase.mjs` should report no failures, and
+`node --env-file=.env.local --experimental-strip-types qa/verify-seed.mjs` should confirm
+every row matches the source data field for field.
+
+**A seed can "succeed" and still be wrong.** The SQL editor reports `Success. No rows
+returned` for an upsert whether it wrote 14 rows or 1, and a truncated description or a
+lost record would only show up as a subtly different site. `verify-seed.mjs` compares
+every field of every row against `src/data/vehicles.ts`, which is also the only test that
+exercises the production `toVehicle()` mapping against real rows rather than fixtures.
+
+**Two seed files, deliberately.** `seed.sql` is the canonical insert; `seed-storage.sql`
+is the follow-up `UPDATE`. They were once one file, which meant merely *previewing* the
+`--storage` output silently replaced the canonical seed with statements pointing at
+photos that had not been uploaded yet.
+
+**Why the order is safe.** Nothing reads the table until the data layer is switched over, so
+steps 1–5 cannot break the live site. And `published` defaults to `false` with the read policy
+requiring `true`, so a half-finished migration exposes nothing.
+
+**The key you need.** Supabase now issues its browser-safe key as `sb_publishable_...` where it
+used to be a JWT labelled "anon". It is the same thing — public by design, protected only by
+row-level security. `NEXT_PUBLIC_SUPABASE_ANON_KEY` keeps the conventional name because
+`@supabase/supabase-js` takes it as the `anonKey` option.
+
+The **service-role** key (`sb_secret_...`) is a different matter: it bypasses RLS entirely and
+must never reach a client component. **Nothing in this project uses it, including the admin
+dashboard.** Writes run on the signed-in admin's own session, so row-level security is the
+thing actually guarding the table and there is no code path that can bypass it. The variable
+is documented in `.env.example` and deliberately left unset.
+
+**Verified against the live project on 2026-09-23:** an anonymous SELECT returns `[]` with
+HTTP 200, and an anonymous INSERT is rejected with `42501` / HTTP 401. The database is locked
+down correctly.
+
+---
+
+## The admin dashboard
+
+Stock management at `/admin`, behind Supabase Auth (email + password). It can add a car, edit
+every field, upload a photo, mark sold/reserved, publish or unpublish, feature on the
+homepage, and delete.
+
+### Before it can be used
+
+Three things, all in the Supabase dashboard, all one-off:
+
+1. **Create the admin user** — Authentication → Users → Add user → **Create new user**, with an
+   email and password. No invite email is needed; you can set the password directly.
+   **Leave "Auto Confirm User" ticked.** Email confirmation is on by default on hosted projects,
+   so an account created without it has `email_confirmed_at = null` and simply cannot sign in —
+   and `signInWithPassword` deliberately does not distinguish that from a wrong password, so the
+   app shows the same generic message either way. It reads as "the password is wrong".
+2. **Run `supabase/migrations/0002_admin_access.sql`** in the SQL editor. `0001` granted
+   admins the ability to *write* but not to *read drafts*, because its select policy applies
+   to every role. Without this file the dashboard lists only published cars, and unpublishing
+   a car makes it vanish from the dashboard as well as the site — which looks exactly like
+   deletion, though nothing is lost.
+   `qa/qa-admin-authenticated.mjs` is the only check that can detect this file not having run.
+3. **Turn off "Allow new users to sign up"** (Authentication → **Sign In / Providers** — the same
+   page is labelled **Settings** on some projects). Every write policy is granted
+   `to authenticated`, so while sign-ups are open, anyone who finds the project URL can create an
+   account and edit your stock. The project URL is not a secret — the publishable key is in the
+   page source. `supabase/optional_admin_email_lock.sql` is a second layer if that setting is
+   ever missed.
+
+**Step 3 is verifiable, and this matters because it was once reported done while still open.**
+`node --env-file=.env.local qa/probe-supabase.mjs` reads `/auth/v1/settings` and asserts
+`disable_signup === true`. That is a hard failure, not a warning — run the probe rather than
+trusting the dashboard, which has three similarly-worded toggles on one page.
+
+```bash
+# after adding QA_ADMIN_EMAIL / QA_ADMIN_PASSWORD to .env.local
+node --env-file=.env.local qa/qa-admin-authenticated.mjs http://localhost:3000
+```
+
+Then use a throwaway account rather than the client's: every write policy is `to authenticated`,
+so any account exercises the identical code path.
+
+
+### How it works
+
+- **Writes are Server Actions** in `src/app/admin/vehicle-actions.ts`. Each one calls
+  `requireAdmin()` first, because an action is a public HTTP endpoint reachable without
+  navigating. Nothing from the form is trusted; every value is re-validated server-side.
+- **`revalidatePath` runs after every write**, so a car marked sold disappears from the site
+  immediately. The 5-minute windows are only the backstop for edits made directly in the
+  Supabase dashboard.
+- **Session handling is in `src/proxy.ts`** — `proxy.ts`, not `middleware.ts`, because
+  Next.js 16 renamed the convention. A `middleware.ts` would silently never run.
+- **Identity is checked with `auth.getClaims()`**, never `getSession()`. The latter reads the
+  session out of the cookie without verifying it, and a cookie is a string the visitor
+  controls.
+- **The proxy is scoped to `/admin` only.** Running it site-wide would call auth on pages that
+  are ISR-cached, and a cached response carrying `Set-Cookie` can hand one visitor another
+  visitor's session. It also keeps `/privacy` true: no public page sets a cookie.
+
+Photographs are uploaded to the `vehicle-photos` bucket with the signed-in admin's session.
+`next.config.ts` raises the Server Action body limit to 12MB, because the default is 1MB and
+a phone photo is several megabytes — without that, every upload fails in a way that looks
+nothing like "the file is too big".
+
+---
+
 ## Where things live
 
 ```
@@ -255,50 +412,98 @@ src/
     about/              who we are + "what we do not claim", AboutPage JSON-LD
     contact/            full details, areas covered, map, ContactPage JSON-LD
     privacy/ terms/     legal drafts, both sharing one shell
+    admin/              Phase 6 — the stock dashboard. login/ sits outside the
+                        (dashboard) route group, which is what carries the auth
+                        check; vehicle-actions.ts holds every write;
+                        auth-actions.ts holds sign-in and sign-out
     globals.css         DESIGN TOKENS: colours, type, radii, motion,
                         --spacing-nav (the header height everything offsets by)
     not-found.tsx       styled 404
     icon.png            favicon
     apple-icon.png      iOS icon
     robots.ts sitemap.ts
+  proxy.ts              Next 16's middleware — refreshes the admin session and
+                        redirects signed-out visitors. Matcher is /admin only
   components/
     layout/             AnnouncementBar, Header (floating pill nav), Footer,
-                        Wordmark, MobileWhatsAppButton
+                        Wordmark, MobileWhatsAppButton,
+                        HideOnAdmin (keeps that chrome off /admin)
+    admin/              VehicleForm, VehicleRowActions — Phase 6
     home/               Hero, QuickSearch, FeaturedCars, WhyChooseUs,
                         SellExchange, ProcessSteps, RecentlySold,
                         Testimonials, LocationContact
     inventory/          FilterControls, InventoryToolbar, MobileFilterSheet,
                         ActiveFilterChips, InventoryEmptyState
     sell/               ValuationForm — Phase 4, composes a WhatsApp message
-                        instead of POSTing (no backend until Phase 5)
+                        instead of POSTing. Deliberate, not a gap: routing it
+                        through WhatsApp keeps the privacy page's "we store
+                        nothing" claim true
     legal/              LegalDocument — the shared shell for /privacy and /terms
     vehicle/            VehicleGallery, SpecTable, EnquiryPanel,
                         BuyerChecklist, SimilarVehicles
     ui/                 Button, Container, SectionHeading, StatusBadge,
                         VehicleCard, SoldVehicleCard, VehicleImage,
                         Reveal, SocialIcon, PageTransition (route cross-fade),
-                        MapPlaceholder (shared by the homepage and /contact)
-  config/site.ts        ALL BUSINESS DETAILS — phone, WhatsApp, address, hours
-  data/vehicles.ts      SAMPLE INVENTORY (placeholder) + similar-car scoring
+                        MapPlaceholder (shared by the homepage and /contact),
+                        Field (label + control + error primitives, shared by the
+                        sell form and the admin forms)
+  config/site.ts        ALL BUSINESS DETAILS — phone, WhatsApp, address, hours,
+                        plus the aboutIsPlaceholder / inventoryIsPlaceholder flags
+  data/vehicles.ts      SEED SOURCE ONLY — not read by the app; generate_seed_sql.mjs
+                        builds supabase/seed.sql from it and verify-seed.mjs checks
+                        the live table against it
   data/testimonials.ts  PLACEHOLDER TESTIMONIALS
   lib/                  format, whatsapp, utils, inventory (filter engine),
-                        vehicle (detail-page data shaping)
+                        facets (stock-derived option lists — pure functions of a
+                        Vehicle[]), vehicle (detail-page data shaping),
+                        supabase (anonymous read client), vehicles-source
+                        (the public read path — published rows only),
+                        admin-vehicles (the admin read path — every row),
+                        supabase-server (cookie-backed client, admin only),
+                        auth (getAdmin / requireAdmin — the real gate),
+                        vehicle-form (the stock form's shape),
+                        vehicle-mapper (row -> Vehicle and -> AdminVehicle)
   types/vehicle.ts      Vehicle domain types
+  types/database.ts     hand-written mirror of the vehicles table (regenerate with the CLI)
 scripts/
   generate_brand_assets.py   regenerates favicon + OG image (re-run after a palette change)
+  generate_seed_sql.mjs      builds supabase/seed.sql, and with --storage,
+                             supabase/seed-storage.sql
   verify_theme.py            checks 32 real fg/bg contrast pairs against globals.css
+  verify_schema.py           checks the Supabase migration still matches the TS types
   analyse_hero_contrast.py   measures headline contrast over the hero photograph
   measure_badge_contrast.py  measures a status badge against the photo behind it
   accent_contrast.py         explore alternative accent ramps
   contact_sheet.py           builds image review sheets
+supabase/
+  migrations/0001_vehicles.sql   the vehicles table, RLS policies and trigger (Phase 5)
+  migrations/0002_admin_access.sql   Phase 6 — lets admins read drafts, and grants
+                                 authenticated writes on the photo bucket. Required
+                                 before the dashboard is usable
+  optional_admin_email_lock.sql  optional hardening: gates every write on a specific
+                                 admin email, so the sign-up setting stops mattering
+  seed.sql                       generated — insert, local /vehicles/ paths
+  seed-storage.sql               generated — follow-up UPDATE, Storage URLs
+storage-upload/                  scratch: the 14 photos staged for upload (gitignored)
 qa/
   qa-nav.mjs                 site-wide header harness; 62 assertions
   qa-inventory.mjs           Phase 2 harness; 47 assertions
   qa-detail.mjs              Phase 3 harness; 62 assertions
   qa-sell.mjs                Phase 4 + supporting pages + copy guard; 123 assertions
+  qa-admin.mjs               Phase 6 auth gate; 29 assertions, needs no credentials
+  qa-admin-authenticated.mjs Phase 6 signed-in round trip; needs an account, writes
+                             and then removes one real row
+  probe-admin-chrome.mjs     asserts the marketing chrome is gone from the DOM on /admin
+  probe-supabase.mjs         live state of the Supabase project in one command
+  probe-login-error.mjs      dumps the DOM after a rejected sign-in, for diagnosing auth
+  verify-seed.mjs            diffs the live table against the seed source
+  unit-vehicle-mapper.mjs    row -> Vehicle mapping, no database needed
   measure-badge.mjs          clips a badge to its DOM box for the contrast script
   probe-404.mjs              one-off: which routes emit a React page error
   probe-header.mjs           one-off: header height + what overflows a viewport
+  probe-supabase.mjs         live check: env, table, RLS, bucket + photo presence
+  verify-seed.mjs            compares all 14 Supabase rows against the source data
+  unit-vehicle-mapper.mjs    8 unit tests for the row -> Vehicle mapping (no database)
   probe-color.mjs            one-off: what format getComputedStyle() returns
   probe-scroll.mjs           one-off: does global smooth scrolling break the reset
   probe-scroll-verify.mjs    measures where a nav click leaves the scroll position
@@ -315,9 +520,32 @@ Four layers, all of which must be green before calling a phase done:
 ```bash
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
-npm run build            # must list 27 prerendered routes, no errors
+npm run build            # must print "Generating static pages (27/27)", no errors
 python scripts/verify_theme.py   # 32 contrast pairs read from globals.css
+python scripts/verify_schema.py  # 10 checks: types, columns, and the Storage bucket name
+node --experimental-strip-types --test qa/unit-vehicle-mapper.mjs   # 8 unit tests
 ```
+
+The last one needs no database, no browser and no credentials — `toVehicle` is pure and its
+module has only type imports, so Node's type stripping loads it directly. It covers the part
+of the Supabase work that can be wrong while everything else looks correct: a mis-cased field
+or a `null` that should be `undefined` renders as empty text rather than throwing.
+
+The build's route table is worth reading rather than skimming. The site is **not
+uniformly static** — it is three kinds of route:
+
+| Marker | Routes | Behaviour |
+|---|---|---|
+| `○` Static | `/about`, `/contact`, `/privacy`, `/terms`, `/sell-your-car`, `/robots.txt`, the icons | prerendered at build |
+| `○` Static + ISR | `/` (5m), `/sitemap.xml` (1h) | prerendered, then revalidated on a timer |
+| `●` SSG + ISR | the 14 `/cars/[id]` pages (5m) | prerendered per vehicle from Supabase, revalidated on a timer |
+| `ƒ` Dynamic | **`/cars`** | server-rendered on demand — it awaits `searchParams` |
+
+Three of those rows read the database. `/cars` does so on every request, which is free — there is
+no build-time snapshot to go stale. The other two are prerendered, so **a car marked sold will not
+disappear until the revalidation window elapses.** The Phase 6 admin dashboard should call
+`revalidatePath()` after a write for an immediate update; the timers are the backstop for changes
+made directly in the Supabase dashboard.
 
 The browser pass needs the production build running:
 
@@ -327,7 +555,13 @@ node qa/qa-nav.mjs       http://localhost:3000   # header — 62 assertions
 node qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # Phase 3 — 62 assertions
 node qa/qa-sell.mjs      http://localhost:3000   # Phase 4 + the 4 supporting pages — 123 assertions
+node qa/qa-admin.mjs     http://localhost:3000   # Phase 6 auth gate — 29 assertions, no credentials needed
+node qa/probe-admin-chrome.mjs http://localhost:3000   # no marketing chrome on /admin — 13 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only on route changes
+
+# Phase 6, signed in. Needs an account; creates and then removes one real row.
+# Add QA_ADMIN_EMAIL / QA_ADMIN_PASSWORD to .env.local first.
+node --env-file=.env.local qa/qa-admin-authenticated.mjs http://localhost:3000
 ```
 
 It drives real Microsoft Edge through `playwright-core` (`channel: 'msedge'` — no browser
@@ -379,11 +613,23 @@ changed together** — the local number is `0312 5935682`, so strip the leading 
 prefix `+92`. `qa/qa-detail.mjs` pins the E.164 value and `qa/qa-sell.mjs` asserts the
 dialled number and the WhatsApp number agree, so a half-done change fails the suite.
 
-### 2. Vehicle photography — `public/vehicles/`
+### 2. Vehicle photography
 
 All 16 photos are free-licence stock standing in for ZK Motors' own photography.
-Swap the files **keeping the same filenames**, then update `imageAlt` in
-`src/data/vehicles.ts` to describe the real vehicle.
+
+**The 14 car photos no longer live in this repo's served files.** Since Phase 5 they are in the
+`vehicle-photos` bucket in Supabase Storage, and that is what the site serves — the local
+copies under `public/vehicles/` are the originals that were uploaded, kept as the source for a
+re-seed. Only the two design assets, `hero-showroom.jpg` and `sell-exchange.jpg`, are still
+served from `public/`.
+
+To replace a photo, the simplest route is the admin dashboard: open the car at `/admin` and
+upload the new file, which writes it to Storage and updates the listing in one step. Uploading
+to the bucket by hand also works, but then update the row's `image` and `image_alt` too —
+`image` must be the full public URL, not a path.
+
+Either way, **`image_alt` has to describe the real vehicle.** It is read aloud to visitors using
+a screen reader, and the current values describe the stock photos.
 
 | File | Shown as |
 |---|---|
@@ -416,11 +662,16 @@ landscape and at least 1600px wide. Three files are **portrait** (1600×2400):
 only about 42% of their height survives the detail gallery. The Prado happens to crop
 acceptably; check any new portrait source rather than assuming.
 
-### 3. Inventory data — `src/data/vehicles.ts`
+### 3. Inventory data — the `vehicles` table
 
-14 vehicles. Prices, mileages, registration cities and highlights are realistic samples,
-not real stock. Distribution is 9 available / 1 reserved / 4 sold, which is deliberate —
-it exercises the reserved badge, the sold treatment and the status filter.
+14 vehicles, seeded from `src/data/vehicles.ts` into Supabase. **That file is now the seed
+source only — the app does not import it.** It is kept because `scripts/generate_seed_sql.mjs`
+regenerates `supabase/seed.sql` from it, and because it is the written record of what the
+database should contain. `qa/verify-seed.mjs` diffs the live rows against it.
+
+Prices, mileages, registration cities and highlights are realistic samples, not real stock.
+Distribution is 9 available / 1 reserved / 4 sold, which is deliberate — it exercises the
+reserved badge, the sold treatment and the status filter.
 
 `description` is written from the record's own facts (year, trim, mileage, transmission,
 registration city) plus what the trim level means in that model range. It deliberately makes
@@ -428,10 +679,16 @@ registration city) plus what the trim level means in that model range. It delibe
 "accident-free" or similar. `highlight` is the one field that does carry a condition claim,
 and it is placeholder text to be replaced with verified information.
 
-The `get*` selectors below the array derive their options from this data, so adding a
-vehicle is enough to make its make, model, body type, fuel and city filterable.
-`getSimilarVehicles()` scores rather than filters, so it always returns results even for the
-cars with no close match (the Hilux pickup, the BMW), and never suggests a sold car.
+The `get*` selectors live in `src/lib/facets.ts` and are **pure functions of a list**, so they
+derive their options from whatever is actually in stock — adding a vehicle is enough to make
+its make, model, body type, fuel and city filterable. `getSimilarVehicles()` scores rather than
+filters, so it always returns results even for the cars with no close match (the Hilux pickup,
+the BMW), and never suggests a sold car.
+
+**`inventoryIsPlaceholder` in `src/config/site.ts` is still `true`**, which keeps the visible
+"sample listing" notice on every car. Moving rows into a database does not make them real:
+they are still the seeded samples with free-licence photography. Turn it off when real stock
+and real photographs are in — and not before.
 
 ---
 
@@ -462,9 +719,14 @@ cars with no close match (the Hilux pickup, the BMW), and never suggests a sold 
   when a vehicle's `gallery` array has entries, but every listing currently has exactly one
   photo, so only the single-photo state has ever run. Add a second photo to a `gallery`
   array and check it before trusting that path.
-- **Next up is the Supabase backend** (Phase 5), replacing `src/data/vehicles.ts`. It needs a
-  project, keys and schema decisions from the client before any code is worth writing — see
-  `AGENTS.md`. The Phase 6 admin dashboard sits behind it.
+- **Next up is deployment.** Every phase is built, but the site has never run anywhere except
+  a local `next start` — there is no hosting config of any kind. Vercel is the plan. The
+  admin dashboard is the reason it now matters more than before: it only helps the client once
+  the site is online. Set the two `NEXT_PUBLIC_SUPABASE_*` variables in the host's environment
+  settings, and nothing else — the service-role key is not needed.
+- **The remaining content placeholders are still open**, and they are what stands between this
+  and a launch: the showroom address, the opening hours, the email address, the social URLs,
+  the logo, and real photography. See [Placeholders to replace before launch](#️-placeholders-to-replace-before-launch).
 
 ### 4. Testimonials — `src/data/testimonials.ts`
 

@@ -1,19 +1,12 @@
 import {
-  bodyTypes,
-  fuelTypes,
   getBodyTypes,
   getFuelTypes,
   getMakes,
   getModels,
-  getPriceBounds,
   getRegistrationCities,
-  getStatusCounts,
   getTransmissions,
   getYears,
-  priceSteps,
-  transmissions,
-  vehicles,
-} from "@/data/vehicles";
+} from "@/lib/facets";
 import type { BodyType, FuelType, Transmission, Vehicle } from "@/types/vehicle";
 
 /**
@@ -27,6 +20,19 @@ import type { BodyType, FuelType, Transmission, Vehicle } from "@/types/vehicle"
  * The homepage quick-search panel already emits make, model, minPrice,
  * maxPrice, year and transmission. Those six names are honoured exactly as
  * written so the hand-off between the two pages keeps working.
+ *
+ * ## Why the list is a parameter
+ *
+ * Stock comes from Supabase now, so it is fetched per request rather than
+ * imported. `parseFilters` and `selectVehicles` therefore take the list
+ * explicitly. Passing it in rather than fetching here keeps this module free of
+ * I/O: the same list is used to validate the URL, count the stock and render
+ * the grid, and a second fetch inside `parseFilters` would risk the two
+ * disagreeing mid-request.
+ *
+ * Filtering stays in JavaScript. Reimplementing `matches()` as SQL `where`
+ * clauses would create two definitions of "matches" that can drift silently,
+ * and at dealership scale it buys nothing — see the note in `vehicles-source`.
  */
 
 /** Status is a single choice rather than a set, so there is no ambiguous
@@ -120,8 +126,11 @@ function pick<T extends string>(value: string, allowed: readonly T[]): T | "" {
  * Turn raw searchParams into a validated filter object.
  * Anything unrecognised is dropped rather than passed through.
  */
-export function parseFilters(raw: RawParams): InventoryFilters {
-  const makes = getMakes();
+export function parseFilters(
+  raw: RawParams,
+  list: readonly Vehicle[],
+): InventoryFilters {
+  const makes = getMakes(list);
   const status = pick(first(raw.status), ["available", "sold", "all"] as const);
   const sort = pick(
     first(raw.sort),
@@ -131,7 +140,10 @@ export function parseFilters(raw: RawParams): InventoryFilters {
   const make = pick(first(raw.make), makes);
   // A model is only valid alongside its make — otherwise a stale model name
   // would silently return nothing.
-  const model = pick(first(raw.model), make ? getModels(make) : getModels());
+  const model = pick(
+    first(raw.model),
+    make ? getModels(list, make) : getModels(list),
+  );
 
   let minPrice = toInt(first(raw.minPrice));
   let maxPrice = toInt(first(raw.maxPrice));
@@ -140,7 +152,7 @@ export function parseFilters(raw: RawParams): InventoryFilters {
     [minPrice, maxPrice] = [maxPrice, minPrice];
   }
 
-  const years = getYears();
+  const years = getYears(list);
   let minYear = toInt(first(raw.minYear));
   let maxYear = toInt(first(raw.maxYear));
   // The quick-search panel sends a single exact `year`.
@@ -163,10 +175,10 @@ export function parseFilters(raw: RawParams): InventoryFilters {
     maxPrice,
     minYear,
     maxYear,
-    transmission: pick(first(raw.transmission), getTransmissions()),
-    fuel: pick(first(raw.fuel), getFuelTypes()),
-    bodyType: pick(first(raw.bodyType), getBodyTypes()),
-    city: pick(first(raw.city), getRegistrationCities()),
+    transmission: pick(first(raw.transmission), getTransmissions(list)),
+    fuel: pick(first(raw.fuel), getFuelTypes(list)),
+    bodyType: pick(first(raw.bodyType), getBodyTypes(list)),
+    city: pick(first(raw.city), getRegistrationCities(list)),
     status: status || defaultFilters.status,
     sort: sort || defaultFilters.sort,
   };
@@ -244,9 +256,12 @@ export function sortVehicles(list: Vehicle[], sort: SortKey): Vehicle[] {
   }
 }
 
-export function selectVehicles(filters: InventoryFilters): Vehicle[] {
+export function selectVehicles(
+  filters: InventoryFilters,
+  list: readonly Vehicle[],
+): Vehicle[] {
   return sortVehicles(
-    vehicles.filter((vehicle) => matches(vehicle, filters)),
+    list.filter((vehicle) => matches(vehicle, filters)),
     filters.sort,
   );
 }
@@ -364,7 +379,8 @@ export function countActiveFilters(filters: InventoryFilters): number {
   return activeChips(filters).length;
 }
 
-/* Re-exported so the UI has one import site for filter option lists. */
+/* Re-exported so the UI has one import site for filter option lists. They are
+   pure functions of a vehicle list now — see src/lib/facets.ts. */
 export {
   bodyTypes,
   fuelTypes,
@@ -379,4 +395,4 @@ export {
   getYears,
   priceSteps,
   transmissions,
-};
+} from "@/lib/facets";

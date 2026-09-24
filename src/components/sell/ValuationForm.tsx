@@ -1,22 +1,35 @@
 "use client";
 
-import { AlertCircle, ChevronDown, MessageCircle, Phone, Send } from "lucide-react";
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ChevronDown, MessageCircle, Phone, Send } from "lucide-react";
+import { useId, useRef, useState, type FormEvent } from "react";
 
 import { buttonClasses } from "@/components/ui/Button";
+import {
+  controlClass,
+  describedBy,
+  fieldBorder,
+  FieldShell,
+  labelClass,
+} from "@/components/ui/Field";
 import { siteConfig } from "@/config/site";
-import { getFuelTypes, getMakes, getTransmissions } from "@/data/vehicles";
+import { fuelTypes, transmissions } from "@/lib/facets";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl, sellVehicleMessage } from "@/lib/whatsapp";
 
 /* ============================================================================
  * Sell-your-car valuation form
  * ============================================================================
- * There is no backend until Phase 5, so this form does not POST anywhere. It
- * composes a WhatsApp message from what the visitor typed and hands them to
- * WhatsApp, where they still have to press send themselves. The panel after
- * submitting says so plainly rather than implying something was transmitted —
- * a form that looks like it sent and did not is worse than no form.
+ * This form does not POST anywhere. It composes a WhatsApp message from what
+ * the visitor typed and hands them to WhatsApp, where they still have to press
+ * send themselves. The panel after submitting says so plainly rather than
+ * implying something was transmitted — a form that looks like it sent and did
+ * not is worse than no form.
+ *
+ * That is a deliberate design decision, not a missing feature. Supabase is
+ * live now, but the sell form is the one place that would collect a name and a
+ * phone number from the public, and the privacy page states that the site does
+ * not store personal data. Routing it through WhatsApp keeps that true and
+ * keeps the conversation where the dealership actually answers.
  *
  * Everything is a native control: a <select>, a plain <input>, a <datalist>
  * for make. No combobox library, no custom keyboard handling, nothing that
@@ -27,6 +40,21 @@ import { buildWhatsAppUrl, sellVehicleMessage } from "@/lib/whatsapp";
  * `»`, which are not usable inside a CSS attribute selector, so the
  * focus-the-first-error lookup goes through `data-field` instead. Keeping
  * `name` plain also lets browser autofill recognise the name and phone fields.
+ *
+ * ## Why transmission and fuel use the fixed lists, not the stock-derived ones
+ *
+ * Everywhere else on the site, an option list is derived from what is actually
+ * in stock, so a filter can never offer a facet that returns nothing. That is
+ * exactly wrong here. These two fields are **required**, and the visitor is
+ * describing a car they already own — which need not be anything like the
+ * current stock. Deriving the options would mean an empty or unusual inventory
+ * left a required dropdown with nothing to choose, making the form impossible
+ * to submit. `transmissions` and `fuelTypes` are therefore the full domain
+ * lists: what the business accepts, not what happens to be on the lot.
+ *
+ * `makes` stays stock-derived, but only as `<datalist>` suggestions — the field
+ * is free text, so an empty list degrades to no autocomplete rather than to a
+ * dead end.
  * ========================================================================== */
 
 type Values = {
@@ -64,12 +92,8 @@ type Errors = Partial<Record<keyof Values, string>>;
 /** Cities offered in the dropdown — the service area, plus an escape hatch. */
 const CITIES = [...siteConfig.areasServed, "Somewhere else"];
 
-const labelClass =
-  "text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-light";
-
-const controlClass =
-  "h-12 w-full rounded-xl border bg-white px-3.5 text-[0.9375rem] text-ink-900 " +
-  "transition-colors duration-200 placeholder:text-ink-400";
+/* `labelClass`, `controlClass` and `FieldShell` now live in
+   `@/components/ui/Field` so the admin forms cannot drift from this one. */
 
 /** Digits only, so "+92 300 123 4567" and "03001234567" both validate. */
 function digitsOf(value: string) {
@@ -122,51 +146,8 @@ function validate(values: Values): Errors {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Field primitives                                                            */
+/* Fields are built from the shared primitives in @/components/ui/Field         */
 /* -------------------------------------------------------------------------- */
-
-function FieldShell({
-  id,
-  label,
-  hint,
-  error,
-  className,
-  children,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  error?: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-      </label>
-      {children}
-      {/* One description slot: the error replaces the hint rather than sitting
-          beside it, so a screen reader never reads two competing sentences. */}
-      {error ? (
-        <p id={`${id}-error`} className="flex items-center gap-1.5 text-xs text-signal-600">
-          <AlertCircle aria-hidden="true" className="size-3.5 shrink-0" />
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className="text-xs text-ink-400">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function describedBy(id: string, error?: string, hint?: string) {
-  if (error) return `${id}-error`;
-  if (hint) return `${id}-hint`;
-  return undefined;
-}
 
 function TextField({
   id,
@@ -212,7 +193,7 @@ function TextField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, error, hint)}
-        className={cn(controlClass, error ? "border-signal-400" : "border-bone-300")}
+        className={cn(controlClass, fieldBorder(error))}
       />
     </FieldShell>
   );
@@ -253,7 +234,7 @@ function SelectField({
           className={cn(
             controlClass,
             "cursor-pointer appearance-none pr-10",
-            error ? "border-signal-400" : "border-bone-300",
+            fieldBorder(error),
             !value && "text-ink-400",
           )}
         >
@@ -275,14 +256,13 @@ function SelectField({
 
 /* -------------------------------------------------------------------------- */
 
-export function ValuationForm() {
+export function ValuationForm({ makes }: { makes: readonly string[] }) {
   const uid = useId();
   const [values, setValues] = useState<Values>(EMPTY);
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState<{ url: string; message: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const makes = getMakes();
   const makeListId = `${uid}-makes`;
 
   function set<K extends keyof Values>(key: K) {
@@ -419,7 +399,7 @@ export function ValuationForm() {
             label="Transmission"
             value={values.transmission}
             onChange={set("transmission")}
-            options={getTransmissions()}
+            options={transmissions}
             placeholder="Select transmission"
             error={errors.transmission}
           />
@@ -429,7 +409,7 @@ export function ValuationForm() {
             label="Fuel"
             value={values.fuel}
             onChange={set("fuel")}
-            options={getFuelTypes()}
+            options={fuelTypes}
             placeholder="Select fuel type"
             error={errors.fuel}
           />

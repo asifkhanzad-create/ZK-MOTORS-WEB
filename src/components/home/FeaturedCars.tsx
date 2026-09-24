@@ -5,10 +5,13 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { VehicleCard } from "@/components/ui/VehicleCard";
-import { getFeaturedVehicles } from "@/data/vehicles";
+import { getFeaturedVehicles } from "@/lib/facets";
+import type { Vehicle } from "@/types/vehicle";
 
-export function FeaturedCars() {
-  const featured = getFeaturedVehicles();
+/** The list is passed in rather than fetched here, so the homepage reads the
+ *  database once for all three sections that need stock. */
+export function FeaturedCars({ vehicles }: { vehicles: readonly Vehicle[] }) {
+  const featured = getFeaturedVehicles(vehicles);
 
   return (
     <section className="border-b border-ink-800 bg-ink-950 py-16 sm:py-20 lg:py-24">

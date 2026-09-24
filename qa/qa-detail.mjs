@@ -140,7 +140,7 @@ async function run() {
   console.log("\n== Every listing resolves with the right title and price ==");
   for (const vehicle of VEHICLES) {
     const response = await page.goto(`${BASE}/cars/${vehicle.id}`, {
-      waitUntil: "networkidle",
+      waitUntil: "load",
     });
     const status = response?.status() ?? 0;
     const h1 = (await page.locator("h1").first().innerText()).trim();
@@ -156,7 +156,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Unknown slug is a 404, not a rendered page ==");
   const missing = await page.goto(`${BASE}/cars/this-car-does-not-exist`, {
-    waitUntil: "networkidle",
+    waitUntil: "load",
   });
   check(missing?.status() === 404, "unknown id returns 404", `got ${missing?.status()}`);
   check(
@@ -167,7 +167,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Available car: specs, panel and structured data ==");
   const available = VEHICLES.find((v) => v.id === "toyota-corolla-altis-grande-2021");
-  await page.goto(`${BASE}/cars/${available.id}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars/${available.id}`, { waitUntil: "load" });
 
   const specs = await readSpecs(page);
   const expectedSpecs = {
@@ -314,7 +314,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Reserved car ==");
   const reserved = VEHICLES.find((v) => v.status === "reserved");
-  await page.goto(`${BASE}/cars/${reserved.id}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars/${reserved.id}`, { waitUntil: "load" });
   const reservedBlocks = await readStructuredData(page);
   check(
     findByType(reservedBlocks, "Car")?.offers?.availability === AVAILABILITY.reserved,
@@ -328,7 +328,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Sold car does not pretend to be for sale ==");
   const sold = VEHICLES.find((v) => v.status === "sold");
-  await page.goto(`${BASE}/cars/${sold.id}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars/${sold.id}`, { waitUntil: "load" });
   const soldBody = await page.locator("main").innerText();
 
   check(/Sold for/i.test(soldBody), "sold page labels the figure \"Sold for\"");
@@ -369,7 +369,7 @@ async function run() {
   console.log("\n== Responsive ==");
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(`${BASE}/cars/${available.id}`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/cars/${available.id}`, { waitUntil: "load" });
     const { scrollWidth, innerWidth } = await overflow(page);
     check(
       scrollWidth <= innerWidth + 1,
@@ -381,7 +381,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Inventory links resolve ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/cars?status=all`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?status=all`, { waitUntil: "load" });
   const cardHrefs = await page
     .locator('article a[href^="/cars/"]')
     .evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute("href")))]);

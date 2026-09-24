@@ -48,5 +48,10 @@ scripts/.font-cache/
 # QA output — regenerable with `node qa/qa-inventory.mjs` and `node qa/shot.mjs`
 /screenshots/
 
+# Scratch folder holding the 14 stock photos staged for upload to Supabase
+# Storage. Copies of files already in public/vehicles/ — delete once the
+# `image` columns point at Storage.
+/storage-upload/
+
 # vercel
 .vercel

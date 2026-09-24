@@ -6,9 +6,10 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 
 import { buttonClasses } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
-import { getMakes, getModels, getYears, transmissions, vehicles } from "@/data/vehicles";
+import { getMakes, getModels, getYears, transmissions } from "@/lib/facets";
 import { formatPKRShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { Vehicle } from "@/types/vehicle";
 
 const ANY = "";
 
@@ -65,7 +66,7 @@ function Field({
   );
 }
 
-export function QuickSearch() {
+export function QuickSearch({ vehicles }: { vehicles: readonly Vehicle[] }) {
   const router = useRouter();
   const uid = useId();
 
@@ -76,14 +77,20 @@ export function QuickSearch() {
   const [year, setYear] = useState(ANY);
   const [transmission, setTransmission] = useState(ANY);
 
-  const makes = useMemo(() => getMakes(), []);
-  const models = useMemo(() => getModels(make || undefined), [make]);
-  const years = useMemo(() => getYears(), []);
+  const makes = useMemo(() => getMakes(vehicles), [vehicles]);
+  const models = useMemo(
+    () => getModels(vehicles, make || undefined),
+    [vehicles, make],
+  );
+  const years = useMemo(() => getYears(vehicles), [vehicles]);
 
   const hasFilters =
     make || model || minPrice || maxPrice || year || transmission;
 
-  /* Live feedback against the sample inventory — no backend needed. */
+  /* Live feedback against the real inventory, counted in the browser so the
+     visitor sees the effect of each choice before committing to a search. The
+     list is small enough that filtering it here costs nothing, and it avoids a
+     round trip per keystroke. */
   const matchCount = useMemo(() => {
     return vehicles.filter((vehicle) => {
       if (make && vehicle.make !== make) return false;
@@ -94,7 +101,7 @@ export function QuickSearch() {
       if (maxPrice && vehicle.price > Number(maxPrice)) return false;
       return true;
     }).length;
-  }, [make, model, minPrice, maxPrice, year, transmission]);
+  }, [vehicles, make, model, minPrice, maxPrice, year, transmission]);
 
   function reset() {
     setMake(ANY);

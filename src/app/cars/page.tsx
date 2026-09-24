@@ -11,11 +11,12 @@ import { Container } from "@/components/ui/Container";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { VehicleCard } from "@/components/ui/VehicleCard";
 import { siteConfig, siteUrl } from "@/config/site";
-import { vehicles } from "@/data/vehicles";
-import { formatPKR, vehicleTitle } from "@/lib/format";
+import { absoluteImageUrl, formatPKR, vehicleTitle } from "@/lib/format";
 import { defaultFilters, parseFilters, selectVehicles } from "@/lib/inventory";
 import { AVAILABILITY } from "@/lib/vehicle";
+import { fetchVehicles } from "@/lib/vehicles-source";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import type { Vehicle } from "@/types/vehicle";
 
 const title = "Used Cars for Sale in Wah Cantt";
 const description =
@@ -47,12 +48,86 @@ export const metadata: Metadata = {
 };
 
 /**
+ * Shown when the inventory cannot be read.
+ *
+ * A distinct state from "no cars match your filters", because the two mean
+ * opposite things and the visitor's next action differs. It deliberately does
+ * **not** fall back to the placeholder array: presenting invented cars as real
+ * stock would be worse than presenting none, and nothing on the page would tell
+ * the visitor which they were looking at.
+ *
+ * The phone and WhatsApp buttons are the point of this state — for a dealership
+ * the call is the conversion, so an outage should still route to it.
+ */
+function InventoryUnavailable() {
+  const whatsappUrl = buildWhatsAppUrl(
+    "Hello ZK Motors, your website could not show the car list. Could you tell me what is available?",
+  );
+
+  return (
+    <PageTransition>
+      <section className="bg-ink-950 pb-20 pt-16 sm:pb-24 sm:pt-20">
+        <Container>
+          <div className="mx-auto flex max-w-2xl flex-col items-start gap-5">
+            <p className="text-eyebrow text-accent-300">Temporarily unavailable</p>
+            <h1 className="text-3xl text-bone-50 sm:text-4xl">
+              We could not load the car list
+            </h1>
+            <p className="text-[0.9375rem] leading-relaxed text-muted-dark sm:text-base">
+              This is a problem at our end, not with your connection — the
+              inventory is not reachable right now. Please call or message us and
+              we will tell you what is in stock.
+            </p>
+
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+              <Button
+                href={`tel:${siteConfig.contact.phoneE164}`}
+                variant="primary"
+                size="lg"
+              >
+                <Phone aria-hidden="true" className="size-4" />
+                Call {siteConfig.contact.phoneDisplay}
+              </Button>
+
+              {whatsappUrl ? (
+                <Button
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="whatsapp"
+                  size="lg"
+                >
+                  <MessageCircle aria-hidden="true" className="size-5" />
+                  WhatsApp
+                </Button>
+              ) : null}
+            </div>
+
+            <p className="text-sm text-ink-400">
+              Or{" "}
+              <Link href="/" className="underline underline-offset-2 hover:text-bone-100">
+                go back to the homepage
+              </Link>
+              .
+            </p>
+          </div>
+        </Container>
+      </section>
+    </PageTransition>
+  );
+}
+
+/**
  * Inventory page.
  *
  * A server component throughout: the filter state lives in the URL, so the
  * server can do the filtering and render the finished list. No client-side
  * fetch, no loading state, no hydration mismatch — and the browser back button
  * walks back through filter changes for free.
+ *
+ * This route is dynamic rather than prerendered, because it awaits
+ * `searchParams`. That is why a database read here costs nothing: there is no
+ * build-time snapshot to go stale.
  */
 export default async function CarsPage({
   searchParams,
@@ -60,18 +135,32 @@ export default async function CarsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const filters = parseFilters(raw);
-  const results = selectVehicles(filters);
 
-  const totalCount = vehicles.length;
+  /* Read once, then used for everything below — validating the URL against the
+     facets that actually exist, filtering, and the counts in the header. */
+  let stock: Vehicle[];
+  try {
+    stock = await fetchVehicles();
+  } catch (error) {
+    console.error("[cars] inventory unavailable:", error);
+    return <InventoryUnavailable />;
+  }
+
+  const filters = parseFilters(raw, stock);
+  const results = selectVehicles(filters, stock);
+
+  const totalCount = stock.length;
 
   /* The headline figures describe buyable stock, not the raw row count.
-     `totalCount` includes the four sold cars, so labelling it "in stock" would
-     be wrong by four. Derived from the default filter set so these numbers and
-     the default view can never disagree. */
-  const buyable = selectVehicles(defaultFilters);
+     `totalCount` includes the sold cars, so labelling it "in stock" would be
+     wrong. Derived from the default filter set so these numbers and the default
+     view can never disagree. */
+  const buyable = selectVehicles(defaultFilters, stock);
   const inStockCount = buyable.length;
-  const lowestPrice = Math.min(...buyable.map((vehicle) => vehicle.price));
+  /* `Math.min()` of an empty list is Infinity, which `formatPKR` would happily
+     render as "PKR Infinity". Null means "omit the figure". */
+  const lowestPrice =
+    buyable.length > 0 ? Math.min(...buyable.map((vehicle) => vehicle.price)) : null;
 
   const whatsappUrl = buildWhatsAppUrl();
 
@@ -97,7 +186,7 @@ export default async function CarsPage({
           value: vehicle.mileage,
           unitCode: "KMT",
         },
-        image: `${siteUrl}${vehicle.image}`,
+        image: absoluteImageUrl(vehicle.image, siteUrl),
         offers: {
           "@type": "Offer",
           price: vehicle.price,
@@ -155,12 +244,16 @@ export default async function CarsPage({
                   {inStockCount}
                 </dd>
               </div>
-              <div>
-                <dt className="text-eyebrow text-ink-400">From</dt>
-                <dd className="mt-1.5 font-display text-2xl font-bold text-bone-50">
-                  {formatPKR(lowestPrice)}
-                </dd>
-              </div>
+              {/* Omitted rather than shown as "PKR Infinity" when nothing is
+                  buyable — an empty lot is a real state, not an error. */}
+              {lowestPrice !== null ? (
+                <div>
+                  <dt className="text-eyebrow text-ink-400">From</dt>
+                  <dd className="mt-1.5 font-display text-2xl font-bold text-bone-50">
+                    {formatPKR(lowestPrice)}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         </Container>
@@ -178,13 +271,14 @@ export default async function CarsPage({
                   --spacing-nav note in globals.css. */}
               <div className="sticky top-[calc(var(--spacing-nav)+1rem)] max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pb-4 pr-1">
                 <h2 className="mb-5 text-eyebrow text-ink-400">Refine</h2>
-                <FilterControls filters={filters} />
+                <FilterControls filters={filters} vehicles={stock} />
               </div>
             </aside>
 
             <div className="min-w-0">
               <InventoryToolbar
                 filters={filters}
+                vehicles={stock}
                 resultCount={results.length}
                 totalCount={totalCount}
               />

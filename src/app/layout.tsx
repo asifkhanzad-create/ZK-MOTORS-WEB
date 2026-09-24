@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { HideOnAdmin } from "@/components/layout/HideOnAdmin";
 import { MobileWhatsAppButton } from "@/components/layout/MobileWhatsAppButton";
 import { siteConfig, siteUrl } from "@/config/site";
 
@@ -136,17 +137,24 @@ export default function RootLayout({
           Skip to content
         </a>
 
-        <Header />
+        <HideOnAdmin>
+          <Header />
+        </HideOnAdmin>
 
         <main id="main">{children}</main>
 
-        <Footer />
-        <MobileWhatsAppButton />
+        <HideOnAdmin>
+          <Footer />
+          <MobileWhatsAppButton />
 
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
+          {/* Marketing structured data. It lives inside the guard so an admin
+              page never declares itself an AutoDealer; combined with the
+              `noindex` in the admin layout, /admin is invisible to search. */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          />
+        </HideOnAdmin>
       </body>
     </html>
   );

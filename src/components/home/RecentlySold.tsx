@@ -5,11 +5,14 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SoldVehicleCard } from "@/components/ui/SoldVehicleCard";
-import { getRecentlySoldVehicles } from "@/data/vehicles";
+import { getRecentlySoldVehicles } from "@/lib/facets";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import type { Vehicle } from "@/types/vehicle";
 
-export function RecentlySold() {
-  const sold = getRecentlySoldVehicles(4);
+/** The list is passed in rather than fetched here, so the homepage reads the
+ *  database once for all three sections that need stock. */
+export function RecentlySold({ vehicles }: { vehicles: readonly Vehicle[] }) {
+  const sold = getRecentlySoldVehicles(vehicles, 4);
   const whatsappUrl = buildWhatsAppUrl(
     "Hello ZK Motors, I saw a sold car on your website. Can you let me know when something similar is available?",
   );

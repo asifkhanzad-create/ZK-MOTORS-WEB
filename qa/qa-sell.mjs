@@ -20,7 +20,9 @@ import { chromium } from "playwright-core";
 const BASE = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 
 let failures = 0;
+let checks = 0;
 function check(ok, label, detail = "") {
+  checks++;
   if (!ok) failures++;
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}${detail ? `  (${detail})` : ""}`);
 }
@@ -45,7 +47,7 @@ await page.addInitScript(() => {
 /* ------------------------------------------------------------------ */
 console.log("\n== The route ==");
 {
-  const response = await page.goto(`${BASE}/sell-your-car`, { waitUntil: "networkidle" });
+  const response = await page.goto(`${BASE}/sell-your-car`, { waitUntil: "load" });
   check(response?.status() === 200, "GET /sell-your-car returns 200", `status ${response?.status()}`);
 
   const h1s = await page.getByRole("heading", { level: 1 }).allTextContents();
@@ -77,7 +79,7 @@ console.log("\n== Every internal link resolves ==");
   const hrefs = new Set();
 
   for (const path of seeds) {
-    const response = await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
+    const response = await page.goto(`${BASE}${path}`, { waitUntil: "load" });
     check(response?.status() === 200, `GET ${path} returns 200`, `status ${response?.status()}`);
     for (const href of await page.locator("a[href^='/']").evaluateAll((els) =>
       els.map((el) => el.getAttribute("href")),
@@ -126,7 +128,7 @@ const FIELDS = [
 ];
 
 async function goToForm() {
-  await page.goto(`${BASE}/sell-your-car`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/sell-your-car`, { waitUntil: "load" });
 }
 
 console.log("\n== The form ==");
@@ -333,7 +335,7 @@ const SUPPORTING = [
 ];
 
 for (const { path, jsonLd, notice } of SUPPORTING) {
-  await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}${path}`, { waitUntil: "load" });
 
   const h1s = await page.getByRole("heading", { level: 1 }).allTextContents();
   check(h1s.length === 1, `${path}: exactly one <h1>`, `${h1s.length} found: ${h1s.join(" | ")}`);
@@ -455,5 +457,11 @@ console.log("\n== Console ==");
 check(consoleErrors.length === 0, "no console errors or page errors", consoleErrors.slice(0, 3).join(" | "));
 
 await browser.close();
-console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) FAILED.`}\n`);
+/* Prints the total, like the other harnesses. It did not, which meant the
+   assertion count quoted in AGENTS.md and README.md was unverifiable — most of
+   these checks run inside per-viewport and per-vehicle loops, so counting
+   `check(` calls in the source gives the wrong number entirely. */
+console.log(
+  `\n${failures === 0 ? `${checks}/${checks} checks passed.` : `${failures} of ${checks} check(s) FAILED.`}\n`,
+);
 process.exit(failures === 0 ? 0 : 1);

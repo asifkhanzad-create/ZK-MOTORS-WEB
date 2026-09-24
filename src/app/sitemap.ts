@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { siteUrl } from "@/config/site";
-import { vehicles } from "@/data/vehicles";
+import { fetchVehicles } from "@/lib/vehicles-source";
 
 /**
  * Only routes that actually exist are listed. The remaining static pages get
@@ -16,9 +16,17 @@ import { vehicles } from "@/data/vehicles";
  * has moved through the lot — and each one carries `SoldOut` availability in
  * its structured data, so a search engine is told plainly that the car is gone.
  * Drop them from this list if the client would rather not rank for them.
+ *
+ * Vehicle entries come from the database, so a newly published car is
+ * discoverable without a code change. If the read fails this throws rather than
+ * emitting a sitemap missing every car — a partial sitemap that looks valid is
+ * how pages quietly drop out of an index.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
+  const vehicles = await fetchVehicles();
 
   return [
     {

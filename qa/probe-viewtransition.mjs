@@ -44,7 +44,7 @@ const reset = () => page.evaluate(() => { window.__vt.calls = 0; });
 const calls = () => page.evaluate(() => window.__vt.calls);
 const nav = () => page.locator('header nav[aria-label="Main"]');
 
-await page.goto(`${base}/`, { waitUntil: "networkidle" });
+await page.goto(`${base}/`, { waitUntil: "load" });
 
 console.log("\n== Browser support ==");
 check(!(await page.evaluate(() => window.__vt.unsupported)), "the browser exposes startViewTransition");
@@ -69,7 +69,7 @@ await page.waitForTimeout(700);
 check((await calls()) >= 1, "detail -> home starts a view transition", `${await calls()} call(s)`);
 
 console.log("\n== Filter changes must NOT cross-fade ==");
-await page.goto(`${base}/cars`, { waitUntil: "networkidle" });
+await page.goto(`${base}/cars`, { waitUntil: "load" });
 await reset();
 await page.getByRole("link", { name: "SUV", exact: true }).first().click();
 await page.waitForURL(/bodyType=SUV/);
@@ -119,7 +119,7 @@ await rp.addInitScript(() => {
     return t;
   };
 });
-await rp.goto(`${base}/`, { waitUntil: "networkidle" });
+await rp.goto(`${base}/`, { waitUntil: "load" });
 await rp.locator('header nav[aria-label="Main"]').getByRole("link", { name: "Cars", exact: true }).click();
 await rp.waitForURL(/\/cars$/);
 await rp.waitForTimeout(700);

@@ -120,7 +120,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Result counts match the filter in the URL ==");
   for (const testCase of COUNT_CASES) {
-    await page.goto(`${BASE}/cars${testCase.query}`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/cars${testCase.query}`, { waitUntil: "load" });
     const { shown, total } = await readCount(page);
     const cards = await page.locator("article").count();
     check(
@@ -136,7 +136,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Header figures describe buyable stock ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars`, { waitUntil: "load" });
   const stats = (
     await page.locator("main section").first().locator("dl").innerText()
   ).replace(/\s+/g, " ");
@@ -155,7 +155,7 @@ async function run() {
 
   /* ------------------------------------------------------------------ */
   console.log("\n== Empty state ==");
-  await page.goto(`${BASE}/cars?make=BMW`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?make=BMW`, { waitUntil: "load" });
   const emptyHeading = page.getByRole("heading", { name: /no cars match/i });
   check(await emptyHeading.isVisible(), "empty state heading is shown");
   check((await page.locator("article").count()) === 0, "no vehicle cards rendered");
@@ -166,7 +166,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Filtering is a real navigation ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars`, { waitUntil: "load" });
   const before = (await readCount(page)).shown;
   check(before === 10, "unfiltered list starts at 10", `got ${before}`);
 
@@ -205,7 +205,7 @@ async function run() {
   );
 
   /* Chip removal */
-  await page.goto(`${BASE}/cars?make=Toyota&bodyType=SUV`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?make=Toyota&bodyType=SUV`, { waitUntil: "load" });
   const chips = await page.getByRole("link", { name: /^Remove filter:/ }).count();
   check(chips === 2, "one chip per active filter group", `got ${chips}`);
   await page.getByRole("link", { name: /Remove filter: Toyota/ }).click();
@@ -218,7 +218,7 @@ async function run() {
 
   /* Price and year ranges collapse to a single chip */
   await page.goto(`${BASE}/cars?minPrice=4000000&maxPrice=8000000&minYear=2018&maxYear=2021`, {
-    waitUntil: "networkidle",
+    waitUntil: "load",
   });
   const rangeChips = await page.getByRole("link", { name: /^Remove filter:/ }).count();
   check(rangeChips === 2, "price and year each collapse to one chip", `got ${rangeChips}`);
@@ -238,15 +238,15 @@ async function run() {
 
   /* ------------------------------------------------------------------ */
   console.log("\n== Sorting ==");
-  await page.goto(`${BASE}/cars?sort=price-asc`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?sort=price-asc`, { waitUntil: "load" });
   const cheapest = await page.locator("article").first().innerText();
   check(/3,650,000/.test(cheapest), "price ascending puts the cheapest first", cheapest.split("\n")[0]);
 
-  await page.goto(`${BASE}/cars?sort=price-desc&status=all`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?sort=price-desc&status=all`, { waitUntil: "load" });
   const dearest = await page.locator("article").first().innerText();
   check(/24,500,000/.test(dearest), "price descending puts the dearest first", dearest.split("\n")[0]);
 
-  await page.goto(`${BASE}/cars?sort=mileage-asc&status=all`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars?sort=mileage-asc&status=all`, { waitUntil: "load" });
   const lowestMileage = await page.locator("article").first().innerText();
   check(/28,000 km/.test(lowestMileage), "lowest mileage sorts correctly", lowestMileage.split("\n")[0]);
 
@@ -254,7 +254,7 @@ async function run() {
   console.log("\n== Responsive ==");
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/cars`, { waitUntil: "load" });
 
     const { scrollWidth, innerWidth } = await overflow(page);
     check(
@@ -272,7 +272,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Mobile filter sheet ==");
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars`, { waitUntil: "load" });
 
   const sidebarVisible = await page
     .getByRole("complementary", { name: /filter cars/i })
@@ -322,7 +322,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== Homepage regression ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "load" });
   const featured = await page.locator("article").count();
   check(featured > 0, "homepage still renders vehicle cards", `${featured} cards`);
   const homeOverflow = await overflow(page);

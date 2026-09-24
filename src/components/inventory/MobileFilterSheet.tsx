@@ -8,6 +8,7 @@ import { FilterControls } from "@/components/inventory/FilterControls";
 import { buttonClasses } from "@/components/ui/Button";
 import { defaultFilters, hrefFor, type InventoryFilters } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import type { Vehicle } from "@/types/vehicle";
 
 /**
  * Filter panel as a slide-over on small screens.
@@ -25,11 +26,13 @@ export function MobileFilterSheet({
   open,
   onClose,
   filters,
+  vehicles,
   resultCount,
 }: {
   open: boolean;
   onClose: () => void;
   filters: InventoryFilters;
+  vehicles: readonly Vehicle[];
   resultCount: number;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -106,7 +109,7 @@ export function MobileFilterSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-6">
-          <FilterControls filters={filters} />
+          <FilterControls filters={filters} vehicles={vehicles} />
         </div>
 
         <div className="flex shrink-0 items-center gap-3 border-t border-ink-800 bg-ink-900 px-5 py-4">

@@ -24,10 +24,27 @@ export const metadata: Metadata = {
  * Privacy policy.
  *
  * Written from what this codebase actually does rather than from a template.
- * The site was checked for `localStorage`, `sessionStorage`, `document.cookie`,
- * analytics tags and third-party scripts: there are none. That makes this an
- * unusually short and unusually accurate policy, which is worth keeping —
- * if a tracker is ever added, this page becomes wrong the same day.
+ * The public pages were checked for `localStorage`, `sessionStorage`,
+ * `document.cookie`, analytics tags and third-party scripts: there are none.
+ * That makes this an unusually short and unusually accurate policy, which is
+ * worth keeping — if a tracker is ever added, this page becomes wrong the same
+ * day.
+ *
+ * **Two things have changed since it was written, and both are now stated on the
+ * page rather than left implied:**
+ *
+ *   - **The listings come from a database.** Phase 5 moved the inventory to
+ *     Supabase, so the old claim that "there is no database behind these pages"
+ *     stopped being true. The database holds cars, not visitors, and the page now
+ *     says exactly that.
+ *   - **The photographs are served by Supabase, not by this site.** Viewing a
+ *     listing makes a request to their servers, which is a third party contact
+ *     the "Fonts and images" section used to deny.
+ *
+ * The staff sign-in sets cookies, which is why the page distinguishes the public
+ * site from the staff area instead of claiming the site sets none at all. That
+ * distinction is only honest because `src/proxy.ts` is scoped to `/admin` — no
+ * public page ever touches auth, so no visitor is ever sent a cookie.
  *
  * The one thing it cannot know is which hosting provider serves the site, so
  * that section describes what hosts generally record and says so.
@@ -36,14 +53,14 @@ const sections: LegalSection[] = [
   {
     title: "The short version",
     body: [
-      `${siteConfig.name} does not have accounts, does not set cookies, and does not run analytics or advertising trackers on this website. There is no database behind these pages, and nothing you type into a form on this site is transmitted to us by the site itself.`,
+      `${siteConfig.name} does not set cookies on the public pages of this website, and does not run analytics or advertising trackers. There are no visitor accounts — you can browse every listing without giving us anything. The car listings you see are read from a database we maintain, which holds details of the cars and nothing about you. Nothing you type into a form on this site is transmitted to us by the site itself.`,
     ],
   },
   {
     title: "What this website does not do",
     list: [
-      "It does not ask you to register, sign in, or create a profile.",
-      "It does not set cookies of its own.",
+      "It does not ask visitors to register, sign in, or create a profile. There is a separate sign-in for our own staff to manage the listings — it lives in its own area of the site, and no visitor is ever asked to use it.",
+      "It does not set cookies on any public page. The staff sign-in does set cookies, so that a member of staff stays signed in while they work; that only ever happens inside the staff area.",
       "It does not use Google Analytics, advertising pixels, heatmaps or any other tracking script.",
       "It does not store anything in your browser's local storage or session storage.",
       "It does not sell, rent or share personal information, because it does not collect any.",
@@ -78,7 +95,8 @@ const sections: LegalSection[] = [
   {
     title: "Fonts and images",
     body: [
-      "The typeface used on this site is downloaded and served from this website itself, so visiting a page does not contact Google or any other font service. Images are served from this site too.",
+      "The typeface used on this site is downloaded and served from this website itself, so visiting a page does not contact Google or any other font service.",
+      "The car photographs are stored with Supabase, the service we use to run the listings database, and are loaded from their servers. Viewing a listing therefore does contact them. Those requests carry only what any web server sees when it serves a file — see “Server logs” above — and nothing you have typed anywhere on this site.",
     ],
   },
   {

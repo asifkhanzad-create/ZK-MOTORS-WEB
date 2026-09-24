@@ -30,7 +30,13 @@ export interface Vehicle {
   /** Registration city, e.g. "Islamabad". */
   registrationCity: string;
   status: VehicleStatus;
-  /** Path under /public, e.g. "/vehicles/corolla-altis.jpg". */
+  /**
+   * Absolute URL to the photo. Since Phase 5 this is a Supabase Storage URL
+   * (`https://<ref>.supabase.co/storage/v1/object/public/vehicle-photos/…`);
+   * it was a `/vehicles/…` path under /public before that, and both shapes still
+   * appear in the seed SQL. Use `absoluteImageUrl()` before putting it in
+   * metadata or structured data, which cannot take a relative path.
+   */
   image: string;
   /** Alt text describing the photo for screen readers. */
   imageAlt: string;
@@ -50,4 +56,26 @@ export interface Vehicle {
    */
   gallery?: string[];
   featured?: boolean;
+}
+
+/**
+ * A listing as the stock dashboard sees it: `Vehicle` plus the columns a visitor
+ * is never sent.
+ *
+ * `toVehicle()` drops `published` on purpose — a public read is filtered to
+ * published rows by row-level security, so if a row reached the app at all it
+ * was published, and carrying the flag around invited code to branch on
+ * something that could only ever be `true`. That reasoning holds for every
+ * visitor-facing page and collapses completely in the admin, where drafts are
+ * the whole point. Hence a second shape rather than an extra field on the first.
+ *
+ * The two are mapped side by side in `vehicle-mapper.ts` so a column added to
+ * one is visible next to the other.
+ */
+export interface AdminVehicle extends Vehicle {
+  /** Draft flag. Unpublished cars are invisible to visitors but listed here. */
+  published: boolean;
+  /** ISO timestamps, maintained by a trigger on update. */
+  createdAt: string;
+  updatedAt: string;
 }

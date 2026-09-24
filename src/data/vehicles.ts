@@ -1,37 +1,39 @@
-import type {
-  BodyType,
-  FuelType,
-  Transmission,
-  Vehicle,
-  VehicleStatus,
-} from "@/types/vehicle";
+import type { Vehicle } from "@/types/vehicle";
 
 /**
  * ============================================================================
- * SAMPLE INVENTORY — PLACEHOLDER DATA
+ * SEED SOURCE — the reference dataset. The app does NOT read this any more.
  * ============================================================================
- * These vehicles are realistic examples for the Wah Cantt / Taxila market, not
- * real stock. Replace this array with live data (Supabase in Phase 5) — the
- * presentation components read only from the exported helpers below.
+ * Live stock comes from Supabase. This array is what `supabase/seed.sql` was
+ * generated from and what `qa/verify-seed.mjs` compares the live table against,
+ * so it is kept as the written record of what the database is supposed to
+ * contain.
+ *
+ * **Nothing under `src/app` or `src/components` imports this file.** If you are
+ * looking for the filtering, sorting or option lists, they moved to
+ * `src/lib/facets.ts` and now take a vehicle list as an argument — because the
+ * list is fetched, not imported. Adding a `get*` helper back here would quietly
+ * reintroduce a second source of truth for the inventory.
+ *
+ * **To change what the site shows, edit the row in Supabase.** Editing it here
+ * changes nothing on the site; it only changes what the next seed would
+ * produce, and would then disagree with the database.
  *
  * Images in /public/vehicles are free-licence stock photos standing in for
- * ZK Motors' own photography. Swap the files, keeping the same filenames, and
- * update `imageAlt` to describe the real vehicle.
+ * ZK Motors' own photography. The live rows point at the copies uploaded to
+ * Supabase Storage, not at these files — these are the originals they were
+ * uploaded from. Swap both, keeping the same filenames, and update `imageAlt`
+ * to describe the real vehicle.
  *
  * `description` is written from the facts in each record — year, trim,
  * mileage, transmission, registration city — plus what the trim level means
  * within that model range. It deliberately makes **no** claims about the
  * condition of an individual car. Do not add "immaculate", "accident-free" or
- * similar to these: nothing on this site has been inspected, and the detail
- * page shows a visible notice saying so.
+ * similar to these: nothing on this site has been inspected.
  *
  * `highlight` is the one field that does carry a condition claim, and it is
  * placeholder text to be replaced with real, verified information.
  */
-
-/** Drives the visible "sample listing" notice on the vehicle detail page.
- *  Set to false once real stock and real copy are in. */
-export const inventoryIsPlaceholder = true;
 
 export const vehicles: Vehicle[] = [
   /* ------------------------------ Available ------------------------------ */
@@ -307,147 +309,3 @@ export const vehicles: Vehicle[] = [
       "The xDrive30i is the petrol X3 with all-wheel drive. This 2018 car was automatic, 52,000 km, registered in Islamabad. It has since been sold.",
   },
 ];
-
-/* ==========================================================================
-   Selectors — components import these rather than filtering inline.
-   ========================================================================== */
-
-/** Vehicles shown in the homepage "Featured cars" grid. */
-export function getFeaturedVehicles(): Vehicle[] {
-  return vehicles.filter((v) => v.featured && v.status !== "sold");
-}
-
-/** Vehicles shown in the "Recently sold" strip. */
-export function getRecentlySoldVehicles(limit = 4): Vehicle[] {
-  return vehicles.filter((v) => v.status === "sold").slice(0, limit);
-}
-
-/** Single vehicle for a detail route. Returns undefined for an unknown slug. */
-export function getVehicleById(id: string): Vehicle | undefined {
-  return vehicles.find((vehicle) => vehicle.id === id);
-}
-
-/**
- * Other cars a buyer looking at `vehicle` would plausibly also want to see.
- *
- * Scored rather than filtered, because a hard filter ("same body type AND
- * within 20% on price") collapses to nothing for the less common cars — the
- * Hilux pickup and the BMW have no close match at all. Scoring always returns
- * `limit` results, and the strongest matches float to the top.
- *
- * Sold cars are never suggested: sending someone to a car they cannot buy is
- * the fastest way to lose the enquiry.
- */
-export function getSimilarVehicles(vehicle: Vehicle, limit = 3): Vehicle[] {
-  const pool = vehicles.filter(
-    (candidate) => candidate.id !== vehicle.id && candidate.status !== "sold",
-  );
-
-  return pool
-    .map((candidate) => {
-      let score = 0;
-      if (candidate.bodyType === vehicle.bodyType) score += 3;
-      if (candidate.make === vehicle.make) score += 2;
-      if (candidate.fuel === vehicle.fuel) score += 1;
-      if (candidate.transmission === vehicle.transmission) score += 1;
-
-      /* Price proximity is relative, so a cheap car is compared against other
-         cheap cars rather than against something three times the money. */
-      const priceGap = Math.abs(candidate.price - vehicle.price) / vehicle.price;
-      if (priceGap <= 0.25) score += 2;
-      else if (priceGap <= 0.6) score += 1;
-
-      return { candidate, score, priceGap };
-    })
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (a.priceGap !== b.priceGap) return a.priceGap - b.priceGap;
-      return b.candidate.year - a.candidate.year;
-    })
-    .slice(0, limit)
-    .map((entry) => entry.candidate);
-}
-
-/* ==========================================================================
-   Filter option lists — power the quick-search panel and the inventory page.
-
-   The `get*` helpers below are derived from the stock that actually exists,
-   not from the union of the domain types. That way the filter UI can never
-   offer a facet that is guaranteed to return zero results — add a hybrid to
-   the data and "Hybrid" appears in the filters on its own.
-   ========================================================================== */
-
-export function getMakes(): string[] {
-  return [...new Set(vehicles.map((v) => v.make))].sort();
-}
-
-/** Models for a given make; returns all models when no make is selected. */
-export function getModels(make?: string): string[] {
-  const pool = make ? vehicles.filter((v) => v.make === make) : vehicles;
-  return [...new Set(pool.map((v) => v.model))].sort();
-}
-
-export function getYears(): number[] {
-  const years = [...new Set(vehicles.map((v) => v.year))].sort((a, b) => b - a);
-  return years;
-}
-
-export function getRegistrationCities(): string[] {
-  return [...new Set(vehicles.map((v) => v.registrationCity))].sort();
-}
-
-/* Domain order is defined here; the getters return only what is in stock. */
-export const transmissions: Transmission[] = ["Automatic", "Manual"];
-export const fuelTypes: FuelType[] = ["Petrol", "Diesel", "Hybrid", "Electric"];
-export const bodyTypes: BodyType[] = [
-  "Sedan",
-  "Hatchback",
-  "SUV",
-  "Crossover",
-  "Pickup",
-];
-
-export function getTransmissions(): Transmission[] {
-  const present = new Set(vehicles.map((v) => v.transmission));
-  return transmissions.filter((item) => present.has(item));
-}
-
-export function getFuelTypes(): FuelType[] {
-  const present = new Set(vehicles.map((v) => v.fuel));
-  return fuelTypes.filter((item) => present.has(item));
-}
-
-export function getBodyTypes(): BodyType[] {
-  const present = new Set(vehicles.map((v) => v.bodyType));
-  return bodyTypes.filter((item) => present.has(item));
-}
-
-/** Price bounds derived from stock, rounded to sensible steps for the UI. */
-export function getPriceBounds(): { min: number; max: number } {
-  const prices = vehicles.map((v) => v.price);
-  return {
-    min: Math.floor(Math.min(...prices) / 100_000) * 100_000,
-    max: Math.ceil(Math.max(...prices) / 100_000) * 100_000,
-  };
-}
-
-/**
- * Round price steps for the min/max selects on the inventory page. Kept as a
- * fixed ladder rather than derived from stock so the choices stay stable as
- * inventory changes.
- */
-export const priceSteps = [
-  2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000, 8_000_000,
-  10_000_000, 15_000_000, 20_000_000, 30_000_000,
-];
-
-/** How many vehicles sit in each status — used for the filter option counts. */
-export function getStatusCounts(): Record<VehicleStatus, number> {
-  return vehicles.reduce(
-    (acc, vehicle) => {
-      acc[vehicle.status] += 1;
-      return acc;
-    },
-    { available: 0, reserved: 0, sold: 0 } as Record<VehicleStatus, number>,
-  );
-}

@@ -14,6 +14,7 @@ import {
   type SortKey,
 } from "@/lib/inventory";
 import { cn } from "@/lib/utils";
+import type { Vehicle } from "@/types/vehicle";
 
 /**
  * Results header: how many cars matched, the sort control, and the mobile
@@ -28,10 +29,14 @@ import { cn } from "@/lib/utils";
  */
 export function InventoryToolbar({
   filters,
+  vehicles,
   resultCount,
   totalCount,
 }: {
   filters: InventoryFilters;
+  /* Passed straight through to the mobile filter sheet, which renders the same
+     facet controls as the desktop sidebar. */
+  vehicles: readonly Vehicle[];
   resultCount: number;
   totalCount: number;
 }) {
@@ -126,6 +131,7 @@ export function InventoryToolbar({
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         filters={filters}
+        vehicles={vehicles}
         resultCount={resultCount}
       />
     </>

@@ -23,6 +23,7 @@ import {
 } from "@/lib/inventory";
 import { formatPKRShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { Vehicle } from "@/types/vehicle";
 
 /**
  * The filter form itself. Rendered twice on the /cars page — once in the
@@ -141,7 +142,16 @@ function Group({
    text on the system's white popup. Setting both keeps the two in step. */
 const optionClass = "bg-ink-850 text-bone-50";
 
-export function FilterControls({ filters }: { filters: InventoryFilters }) {
+export function FilterControls({
+  filters,
+  vehicles,
+}: {
+  filters: InventoryFilters;
+  /* The whole stock list, because every facet here — makes, models, years,
+     cities, counts, price bounds — is derived from what is actually in stock.
+     Fetched on the server and passed down; this component never fetches. */
+  vehicles: readonly Vehicle[];
+}) {
   const router = useRouter();
   const uid = useId();
 
@@ -168,16 +178,23 @@ export function FilterControls({ filters }: { filters: InventoryFilters }) {
 
   const clearGroup = (key: ChipKey) => hrefFor(live, key);
 
-  const makes = getMakes();
-  const models = getModels(filters.make || undefined);
-  const years = getYears();
-  const statusCounts = getStatusCounts();
+  const makes = getMakes(vehicles);
+  const models = getModels(vehicles, filters.make || undefined);
+  const years = getYears(vehicles);
+  const statusCounts = getStatusCounts(vehicles);
 
   /* Bound the price ladder by the real stock so neither end can be set to a
-     value that is guaranteed to return nothing. */
-  const bounds = getPriceBounds();
-  const minPriceOptions = priceSteps.filter((step) => step <= bounds.max);
-  const maxPriceOptions = priceSteps.filter((step) => step >= bounds.min);
+     value that is guaranteed to return nothing. With no stock there is nothing
+     to bound it with, so both ends fall back to the full ladder — an empty
+     inventory is a temporary state, and a price filter with no options at all
+     reads as broken rather than as empty. */
+  const bounds = getPriceBounds(vehicles);
+  const minPriceOptions = bounds
+    ? priceSteps.filter((step) => step <= bounds.max)
+    : priceSteps;
+  const maxPriceOptions = bounds
+    ? priceSteps.filter((step) => step >= bounds.min)
+    : priceSteps;
 
   function onSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -346,7 +363,7 @@ export function FilterControls({ filters }: { filters: InventoryFilters }) {
         <Pill href={clearGroup("transmission")} active={filters.transmission === ""}>
           Any
         </Pill>
-        {getTransmissions().map((item) => (
+        {getTransmissions(vehicles).map((item) => (
           <Pill
             key={item}
             href={withFilter({ transmission: item })}
@@ -361,7 +378,7 @@ export function FilterControls({ filters }: { filters: InventoryFilters }) {
         <Pill href={clearGroup("fuel")} active={filters.fuel === ""}>
           Any
         </Pill>
-        {getFuelTypes().map((item) => (
+        {getFuelTypes(vehicles).map((item) => (
           <Pill key={item} href={withFilter({ fuel: item })} active={filters.fuel === item}>
             {item}
           </Pill>
@@ -372,7 +389,7 @@ export function FilterControls({ filters }: { filters: InventoryFilters }) {
         <Pill href={clearGroup("bodyType")} active={filters.bodyType === ""}>
           Any
         </Pill>
-        {getBodyTypes().map((item) => (
+        {getBodyTypes(vehicles).map((item) => (
           <Pill
             key={item}
             href={withFilter({ bodyType: item })}
@@ -387,7 +404,7 @@ export function FilterControls({ filters }: { filters: InventoryFilters }) {
         <Pill href={clearGroup("city")} active={filters.city === ""}>
           Any
         </Pill>
-        {getRegistrationCities().map((item) => (
+        {getRegistrationCities(vehicles).map((item) => (
           <Pill key={item} href={withFilter({ city: item })} active={filters.city === item}>
             {item}
           </Pill>

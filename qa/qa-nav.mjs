@@ -194,7 +194,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== The capsule carries its own backdrop ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "load" });
 
   const scrim = await resolveColor(capsule);
   const wordmark = await resolveColor(capsule.locator("> a").first(), "color");
@@ -263,7 +263,7 @@ async function run() {
 
   /* ------------------------------------------------------------------ */
   console.log("\n== The current-page pill ==");
-  await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars`, { waitUntil: "load" });
 
   const current = page.locator('header nav[aria-label="Main"] a[aria-current="page"]');
   const currentCount = await current.count();
@@ -348,7 +348,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== The disclosure menu ==");
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "load" });
 
   const panelId = await toggle.getAttribute("aria-controls");
   check(Boolean(panelId), "toggle points at the panel with aria-controls", String(panelId));
@@ -474,7 +474,7 @@ async function run() {
      once: with `scroll-behavior: smooth` on <html>, Next's scroll reset animated
      from the old position, the incoming page swapped in mid-animation and the
      animation settled short — /cars opened at 131px instead of 0. */
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "load" });
   await page.evaluate(() => window.scrollTo(0, 2400));
   await page.waitForTimeout(300);
 
@@ -519,7 +519,7 @@ async function run() {
   /* ------------------------------------------------------------------ */
   console.log("\n== The toolbar clears the header ==");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/cars`, { waitUntil: "load" });
   await page.evaluate(() => window.scrollTo(0, 1400));
   await page.waitForTimeout(400);
 
@@ -539,7 +539,7 @@ async function run() {
   console.log("\n== Responsive ==");
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(`${BASE}/cars`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/cars`, { waitUntil: "load" });
 
     const metrics = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,

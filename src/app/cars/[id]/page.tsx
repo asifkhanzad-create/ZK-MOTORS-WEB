@@ -11,15 +11,11 @@ import { EnquiryPanel } from "@/components/vehicle/EnquiryPanel";
 import { SimilarVehicles } from "@/components/vehicle/SimilarVehicles";
 import { SpecTable } from "@/components/vehicle/SpecTable";
 import { VehicleGallery } from "@/components/vehicle/VehicleGallery";
-import { siteConfig, siteUrl } from "@/config/site";
-import {
-  getSimilarVehicles,
-  getVehicleById,
-  inventoryIsPlaceholder,
-  vehicles,
-} from "@/data/vehicles";
-import { formatMileage, vehicleTitle } from "@/lib/format";
+import { inventoryIsPlaceholder, siteConfig, siteUrl } from "@/config/site";
+import { getSimilarVehicles, getVehicleById } from "@/lib/facets";
+import { absoluteImageUrl, formatMileage, vehicleTitle } from "@/lib/format";
 import { AVAILABILITY, vehicleDescription, vehicleFullTitle } from "@/lib/vehicle";
+import { fetchVehicles } from "@/lib/vehicles-source";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 type Params = { params: Promise<{ id: string }> };
@@ -39,14 +35,22 @@ type Params = { params: Promise<{ id: string }> };
  * returns undefined, and `notFound()` renders the not-found page through the
  * supported path — no mismatch. `qa/qa-detail.mjs` asserts both that an
  * unknown slug returns 404 and that no uncaught page error occurs.
+ *
+ * Each detail page revalidates every five minutes, so a car marked sold in the
+ * database stops advertising itself without waiting for a deploy. The Phase 6
+ * admin dashboard calls `revalidatePath()` for an immediate update; this window
+ * is the backstop for edits made directly in Supabase.
  */
-export function generateStaticParams() {
+export const revalidate = 300;
+
+export async function generateStaticParams() {
+  const vehicles = await fetchVehicles();
   return vehicles.map((vehicle) => ({ id: vehicle.id }));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
-  const vehicle = getVehicleById(id);
+  const vehicle = getVehicleById(await fetchVehicles(), id);
 
   if (!vehicle) {
     return { title: "Car not found", robots: { index: false, follow: true } };
@@ -76,7 +80,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
          preview the actual vehicle. */
       images: [
         {
-          url: vehicle.image,
+          url: absoluteImageUrl(vehicle.image, siteUrl),
           width: 1200,
           height: 900,
           alt: vehicle.imageAlt,
@@ -88,13 +92,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function VehicleDetailPage({ params }: Params) {
   const { id } = await params;
-  const vehicle = getVehicleById(id);
+
+  /* One read for the whole page: the car itself, and the pool that similar
+     vehicles are scored against. `fetchVehicles` is memoised per request, so
+     this is the same query `generateMetadata` already made rather than a second
+     round trip. */
+  const vehicles = await fetchVehicles();
+  const vehicle = getVehicleById(vehicles, id);
 
   if (!vehicle) notFound();
 
   const title = vehicleTitle(vehicle);
   const isSold = vehicle.status === "sold";
-  const similar = getSimilarVehicles(vehicle);
+  const similar = getSimilarVehicles(vehicles, vehicle);
   const whatsappUrl = buildWhatsAppUrl();
 
   const carSchema = {
@@ -103,7 +113,7 @@ export default async function VehicleDetailPage({ params }: Params) {
     name: title,
     description: vehicleDescription(vehicle),
     url: `${siteUrl}/cars/${vehicle.id}`,
-    image: `${siteUrl}${vehicle.image}`,
+    image: absoluteImageUrl(vehicle.image, siteUrl),
     brand: { "@type": "Brand", name: vehicle.make },
     model: vehicle.model,
     vehicleModelDate: String(vehicle.year),
@@ -220,10 +230,13 @@ export default async function VehicleDetailPage({ params }: Params) {
               {!isSold ? <BuyerChecklist vehicle={vehicle} /> : null}
 
               {/*
-                Honesty notice. Every listing on this site is sample data, and a
-                detail page states a lot more about a specific car than a card
-                does — so the notice belongs here more than anywhere else. It
-                disappears on its own once real stock is loaded.
+                Honesty notice. The rows live in Supabase now, but they are
+                still the sample set — moving them into a database did not make
+                them real. A detail page states far more about a specific car
+                than a card does, so the notice belongs here most of all. It
+                disappears when `inventoryIsPlaceholder` in src/config/site.ts
+                is set to false, which should happen only once the database
+                holds real stock and the showroom's own photography.
               */}
               {inventoryIsPlaceholder ? (
                 <p className="flex items-start gap-2.5 rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-[0.8125rem] leading-relaxed text-muted-dark">

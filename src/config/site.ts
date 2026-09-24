@@ -250,12 +250,32 @@ export type SiteConfig = typeof siteConfig;
 /**
  * Marks the About copy above as invented placeholder text.
  *
- * Same pattern as `inventoryIsPlaceholder` in `src/data/vehicles.ts`: while
- * this is true the About page shows a notice saying the text is sample copy,
- * so a placeholder can never quietly pass as the client's own history. Set it
- * to false once the real account is written.
+ * Same pattern as `inventoryIsPlaceholder` below: while this is true the About
+ * page shows a notice saying the text is sample copy, so a placeholder can
+ * never quietly pass as the client's own history. Set it to false once the real
+ * account is written.
  */
 export const aboutIsPlaceholder = true;
+
+/**
+ * Marks the inventory as sample data rather than real stock.
+ *
+ * This lived in `src/data/vehicles.ts` while the app read that file. The app
+ * reads Supabase now, so the flag moved here — but **its value did not change,
+ * and it must not be set to false yet.**
+ *
+ * Moving rows into a database does not make them real. The 14 records in
+ * `public.vehicles` were seeded from the placeholder array, their photographs
+ * are free-licence stock images, and one of them (`city-aspire.jpg`) shows a
+ * Toyota Corolla on the Honda City listing. None of it describes a car that is
+ * actually on the lot.
+ *
+ * While this is true the vehicle detail page says so plainly, in the place a
+ * visitor reads the most specific claims about a specific car. Set it to false
+ * only when the database holds real stock with the showroom's own photography
+ * and verified `highlight` text — not before, and not because the data moved.
+ */
+export const inventoryIsPlaceholder = true;
 
 /** Absolute site URL — used for metadata and structured data. */
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://zkmotors.pk";

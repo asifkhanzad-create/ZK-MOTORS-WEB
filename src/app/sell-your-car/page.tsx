@@ -7,6 +7,8 @@ import { Container } from "@/components/ui/Container";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { directionsUrl, siteConfig, siteUrl } from "@/config/site";
+import { getMakes } from "@/lib/facets";
+import { fetchVehicles } from "@/lib/vehicles-source";
 import { buildWhatsAppUrl, sellEnquiryMessage } from "@/lib/whatsapp";
 
 const title = "Sell or Exchange Your Car";
@@ -47,7 +49,18 @@ export const metadata: Metadata = {
  * the car. The site cannot know any of those things, and a dealership that
  * over-promises here has to walk it back on the phone.
  */
-export default function SellYourCarPage() {
+export default async function SellYourCarPage() {
+  /* Only used to seed the make field's <datalist>. If the inventory cannot be
+     read the form still works — the make field is free text, so this degrades
+     to no autocomplete rather than to a broken page. A valuation enquiry is
+     worth capturing even when the listing side is down. */
+  let makes: string[] = [];
+  try {
+    makes = getMakes(await fetchVehicles());
+  } catch (error) {
+    console.error("[sell-your-car] could not load makes for the datalist:", error);
+  }
+
   const whatsappUrl = buildWhatsAppUrl(sellEnquiryMessage);
 
   /* FAQ structured data. Mirrors the questions rendered below — a mismatch
@@ -166,7 +179,7 @@ export default function SellYourCarPage() {
 
           <div className="lg:grid lg:grid-cols-[1fr_18rem] lg:gap-10">
             <div className="min-w-0">
-              <ValuationForm />
+              <ValuationForm makes={makes} />
             </div>
 
             {/* Sticky reassurance rail on wide screens only — on a phone it
