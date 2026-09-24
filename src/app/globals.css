@@ -73,12 +73,12 @@
   --color-muted-light: #55585e; /* on light surfaces */
 
   /* ---- Status ---- */
-  --color-status-available: #6fdc9b;
+  --color-status-available: #23c19d;
   --color-status-reserved: #f2a8a0;
   --color-status-sold: #9aa4b2;
 
   /* ---- WhatsApp brand (used only for the WhatsApp action) ---- */
-  --color-whatsapp: #25d366;
+  --color-whatsapp: #23c19d;
 
   /* ---- Typography ---- */
   --font-display: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
@@ -168,7 +168,45 @@
   /* Visible, consistent keyboard focus everywhere.
      accent-500 rather than the lighter accent-400: it has to clear 3:1 against
      both the dark charcoal and the light sections, and accent-400 is too pale
-     to do that on the light side. */
+     to do that on the light side.
+
+     THE RING NEEDS 5px OF CLEARANCE ON EVERY SIDE. That is `outline-offset: 3px`
+     plus the 2px stroke, and it is drawn *outside* the element's border box, so
+     any ancestor with an `overflow` other than `visible` clips it at its own
+     padding box. `overflow-y: auto` is enough on its own — CSS forces the other
+     axis to compute to `auto` too — so a vertical scroll container eats the left
+     and right of every ring inside it. This is invisible to a mouse user, because
+     the ring only appears for keyboard focus, which is exactly the person who
+     needs it.
+
+     That is how the `/cars` sidebar lost the sides of all eight filter controls:
+     `overflow-y-auto` with `pr-1` and no left padding gave 0px of clearance on
+     the left and 4px on the right. Fixed there with `-mx-4 px-4`, which bleeds
+     the clipping box without moving the content. The announcement bar had the
+     same problem for the opposite reason — its phone link filled the 44px strip
+     edge to edge, so there was nothing above it but the top of the page.
+
+     ON THE RIGHT, THE PADDING BOX IS NOT THE BOUNDARY — THE SCROLLBAR IS. On
+     Windows, Edge/Chrome draw an overlay scrollbar: it takes zero layout space
+     (`offsetWidth` minus `clientWidth` is 0) and floats over the last 15px of the
+     scrollport. So padding content clear of the padding box still leaves the ring
+     painted underneath the bar. The `/cars` sidebar therefore also carries
+     `scrollbar-gutter: stable`, which reserves the gutter so the bar stops
+     overlaying content — and, just as usefully, makes the layout identical
+     whether a machine uses overlay or classic scrollbars. Without it the filter
+     column is 272px on one machine and 257px on the next. The usable rule is
+     `gap = paddingRight - 5px`.
+
+     One more thing about this ring: `transition-colors` in Tailwind v4 includes
+     `outline-color`, so a control using it animates its ring from `currentColor`
+     — near-white — to accent-500 over ~200ms. On the light sections that is no
+     visible ring for the first fifth of a second of keyboard focus.
+
+     So: when you put a focusable control inside a scroll container or flush
+     against a page edge, give it 5px — plus the scrollbar's width if the
+     container scrolls. `qa/qa-focus-ring.mjs` tabs through every page at two
+     viewports, measures clearance against the scrollbar rather than the padding
+     box, and self-tests that it can still fail. */
   :focus-visible {
     outline: 2px solid var(--color-accent-500);
     outline-offset: 3px;

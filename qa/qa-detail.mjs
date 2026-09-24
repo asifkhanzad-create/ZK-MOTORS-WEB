@@ -385,9 +385,17 @@ async function run() {
   const cardHrefs = await page
     .locator('article a[href^="/cars/"]')
     .evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute("href")))]);
+  /* The expected number is read from the toolbar, not from the length of the
+     `VEHICLES` fixture. That array is the seed data, and the client can add cars
+     through the dashboard — so a literal count goes stale the first time they
+     use the product, which is exactly what happened. Comparing the rendered
+     links against the count the page reports still catches a card that renders
+     without a link, or two cards sharing one. */
+  const totalText = await page.locator('[aria-live="polite"]').first().innerText();
+  const expected = Number((totalText.match(/of\s+([\d,]+)/i)?.[1] ?? "").replace(/,/g, ""));
   check(
-    cardHrefs.length === VEHICLES.length,
-    `every one of the ${VEHICLES.length} cars has a detail link`,
+    Number.isFinite(expected) && expected > 0 && cardHrefs.length === expected,
+    `every one of the ${expected} cars in stock has a detail link`,
     `${cardHrefs.length} unique links`,
   );
 

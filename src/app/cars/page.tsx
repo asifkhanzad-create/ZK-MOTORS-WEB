@@ -267,9 +267,35 @@ export default async function CarsPage({
                 toolbar, which is why this is hidden below lg rather than
                 collapsed. */}
             <aside aria-label="Filter cars" className="hidden lg:block">
-              {/* One rem of breathing room below the sticky header — see the
-                  --spacing-nav note in globals.css. */}
-              <div className="sticky top-[calc(var(--spacing-nav)+1rem)] max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pb-4 pr-1">
+              {/* The negative margin and matching padding are load-bearing, not
+                  tidying, and the numbers are measured rather than guessed.
+
+                  `overflow-y-auto` forces `overflow-x` to compute to `auto` as
+                  well, so this wrapper clips horizontally. The focus ring in
+                  globals.css is `2px` at `outline-offset: 3px` — 5px *outside*
+                  the control's border box — so it needs 5px of room on every side
+                  or it is cut.
+
+                  Clearing the padding box is NOT enough on the right, because of
+                  the scrollbar. On Windows, Edge/Chrome draw an *overlay*
+                  scrollbar: it takes zero layout space (`offsetWidth` minus
+                  `clientWidth` is 0) and floats over the last 15px of the
+                  scrollport. Padding the content 8px clear of the padding box
+                  still left the ring 12px *inside* the scrollbar.
+
+                  `scrollbar-gutter: stable` is the fix for that, and it does two
+                  things: it reserves the gutter so the scrollbar stops overlaying
+                  content, and it makes the layout identical whether the machine
+                  uses overlay or classic scrollbars. Without it the filter column
+                  is 272px on one machine and 257px on the next.
+
+                  `-mx-4 px-4` then gives 11px on both sides — the gap is
+                  `padding − 5px ring reach`, and the same 16px also cancels the
+                  gutter so the left edge stays flush with the grid column. The
+                  controls end 15px short of the column's right edge; that 15px
+                  belongs to the scrollbar. `qa/qa-focus-ring.mjs` asserts the
+                  clearance, measured against the scrollbar, not the padding box. */}
+              <div className="sticky top-[calc(var(--spacing-nav)+1rem)] -mx-4 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-gutter:stable]">
                 <h2 className="mb-5 text-eyebrow text-ink-400">Refine</h2>
                 <FilterControls filters={filters} vehicles={stock} />
               </div>

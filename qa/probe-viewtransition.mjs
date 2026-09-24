@@ -18,7 +18,9 @@ const base = process.argv[2] ?? "http://localhost:3000";
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 
 let failures = 0;
+let checks = 0;
 function check(ok, label, detail = "") {
+  checks++;
   if (!ok) failures++;
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}${detail ? `  (${detail})` : ""}`);
 }
@@ -131,5 +133,5 @@ console.log("\n== Console ==");
 check(errors.length === 0, "no console errors or page errors", errors.slice(0, 3).join(" | "));
 
 await browser.close();
-console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) FAILED.`}\n`);
+console.log(`\n${checks - failures}/${checks} checks passed.\n`);
 process.exit(failures === 0 ? 0 : 1);

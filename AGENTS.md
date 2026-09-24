@@ -45,10 +45,25 @@ change.
 
 **The user reviews each phase before the next one begins. Do not build ahead.**
 
-**Phase 6 is code-complete and all three setup items are in place** (2026-09-24).
-Item 3 is checked and green; items 1 and 2 cannot be checked without signing in, so
-they stay **unverified** — which is not the same as verified, and the handover doc
-should not claim otherwise.
+**Phase 6 is code-complete, all three setup items are in place, and the signed-in
+half has now run for real** (2026-09-24).
+
+Item 3 is checked and green. Items 1 and 2 were unverifiable from the outside, and
+are now confirmed the strongest way available: **the owner signed in and added a
+car through the dashboard.** The row is `lc300` (Toyota Land Cruiser, 2022,
+PKR 96,500,000), and its `image` is a timestamped
+`vehicle-photos/lc300-1790200749239.webp` that resolves 200 and decodes as a real
+852×568 WebP. So sign-in, the form, validation, the insert, the Storage upload —
+including the WebP branch — and the public read path have all executed against the
+live project. It is worth being precise about what that does *not* cover: the
+automated round trip in `qa/qa-admin-authenticated.mjs` has still never run, so
+edit / unpublish / delete are unexercised, and **unpublish is the one that would
+reveal `0002_admin_access.sql` not having been applied.**
+
+The 14 seeded rows are still placeholder stock. `lc300` is not — it is real stock
+from the client. So the dataset is now mixed, and `inventoryIsPlaceholder` in
+`src/config/site.ts` is still `true`, which is now only *mostly* accurate. Worth
+raising when the real photos land.
 
 1. An admin user in **Authentication → Users** (email + password, no invite mail
    needed — "Add user" lets you set one directly). **Tick "Auto Confirm User."**
@@ -631,9 +646,10 @@ Then, against a running production build:
 ```bash
 npm run build && npm run start
 node qa/qa-nav.mjs       http://localhost:3000   # 62 assertions
-node qa/qa-inventory.mjs http://localhost:3000   # 47 assertions
+node --env-file=.env.local qa/qa-inventory.mjs http://localhost:3000   # 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # 62 assertions
 node qa/qa-sell.mjs      http://localhost:3000   # 123 assertions
+node qa/qa-focus-ring.mjs http://localhost:3000  # 18 assertions — 8 pages × 2 viewports + self-test
 node qa/qa-admin.mjs     http://localhost:3000   # 29 assertions
 node qa/probe-admin-chrome.mjs http://localhost:3000   # 13 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # 10 assertions
@@ -642,6 +658,45 @@ node qa/probe-viewtransition.mjs http://localhost:3000   # 10 assertions
 # Add QA_ADMIN_EMAIL / QA_ADMIN_PASSWORD to .env.local first.
 node --env-file=.env.local qa/qa-admin-authenticated.mjs http://localhost:3000
 ```
+
+**`qa-inventory.mjs` needs `--env-file=.env.local`** because it reads the live stock
+to derive its expected counts. It used to hard-code them — "14 cars total, 10
+buyable, Toyota 3, SUV 5" — which was fine while the dataset was frozen and broke
+the moment the client added a car through the dashboard: 24 checks went red and
+every one was the harness being out of date, not the site being wrong. A suite that
+fails when someone uses the product is worse than no suite, because the next real
+failure arrives buried in noise. The predicates are written out in the harness
+rather than imported from `src/lib/facets.ts` on purpose — re-importing the app's
+own filter engine would compare the app to itself. `qa-detail.mjs` had the same
+literal-count problem and now reads the expected number from the toolbar.
+
+**`qa-focus-ring.mjs` is the guard for a whole class of bug.** The ring in
+`globals.css` is drawn 5px outside the control's border box, so any ancestor with
+`overflow` other than `visible` clips it — and `overflow-y: auto` alone is enough,
+because CSS forces the other axis to `auto`. It tabs through eight pages at two
+viewports and fails if any ring is cut. **It must tab, not read geometry up front:**
+the ring only applies under `:focus-visible`, so an unfocused element reports
+`outline-style: none` and `outline-width: 0`. The first version of this harness
+did exactly that, computed a reach of zero for every element, skipped them all and
+reported 16/16 while the `/cars` keyword field was visibly clipped.
+
+**On the right the padding box is not the boundary — the scrollbar is.** Padding the
+`/cars` content 8px clear of the padding box fixed the left side and still left the
+ring 12px *under* the scrollbar: Windows Edge/Chrome draw an **overlay** scrollbar,
+which reports `offsetWidth - clientWidth === 0` (no layout space) yet floats over
+the last 15px of the scrollport. The harness therefore measures clearance against
+`paddingBoxRight − scrollbarWidth`, and measures that width by temporarily forcing
+`scrollbar-gutter: stable` when the direct subtraction comes back 0. The sidebar
+itself now carries `scrollbar-gutter: stable`, which stops the bar overlaying
+content and makes the column width identical on overlay and classic scrollbars.
+**The usable rule is `gap = paddingRight − 5px`.**
+
+**The harness self-tests, and any new negative assertion should too.** It reverts the
+`/cars` sidebar to the pre-fix style in-page and asserts the check reports a cut. A
+suite made of "nothing is wrong" assertions has to demonstrate it can go red, or its
+green means nothing — this project has shipped several checks that passed while the
+bug was visible on screen, including two earlier versions of this very harness. If you
+cannot name the input that would make a check fail, it is decoration.
 
 Every harness prints `N/N checks passed.` Counts quoted here are the ones the
 harnesses actually emit. `qa-sell.mjs` did not print a total until Phase 6, so the

@@ -490,6 +490,9 @@ qa/
   qa-inventory.mjs           Phase 2 harness; 47 assertions
   qa-detail.mjs              Phase 3 harness; 62 assertions
   qa-sell.mjs                Phase 4 + supporting pages + copy guard; 123 assertions
+  qa-focus-ring.mjs          tabs every page at 2 viewports; 18 assertions. Fails if
+                             any ancestor's overflow clips a focus ring, and
+                             self-tests that it can still fail
   qa-admin.mjs               Phase 6 auth gate; 29 assertions, needs no credentials
   qa-admin-authenticated.mjs Phase 6 signed-in round trip; needs an account, writes
                              and then removes one real row
@@ -552,9 +555,10 @@ The browser pass needs the production build running:
 ```bash
 NODE_OPTIONS= npm run build && npm run start   # in one terminal
 node qa/qa-nav.mjs       http://localhost:3000   # header — 62 assertions
-node qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
+node --env-file=.env.local qa/qa-inventory.mjs http://localhost:3000   # Phase 2 — 47 assertions
 node qa/qa-detail.mjs    http://localhost:3000   # Phase 3 — 62 assertions
 node qa/qa-sell.mjs      http://localhost:3000   # Phase 4 + the 4 supporting pages — 123 assertions
+node qa/qa-focus-ring.mjs http://localhost:3000   # focus rings are never clipped — 18 assertions
 node qa/qa-admin.mjs     http://localhost:3000   # Phase 6 auth gate — 29 assertions, no credentials needed
 node qa/probe-admin-chrome.mjs http://localhost:3000   # no marketing chrome on /admin — 13 assertions
 node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only on route changes
@@ -563,6 +567,48 @@ node qa/probe-viewtransition.mjs http://localhost:3000   # cross-fade fires only
 # Add QA_ADMIN_EMAIL / QA_ADMIN_PASSWORD to .env.local first.
 node --env-file=.env.local qa/qa-admin-authenticated.mjs http://localhost:3000
 ```
+
+**Expected counts are derived from the live stock, never hard-coded.**
+`qa-inventory.mjs` reads the `vehicles` table and works out how many cars each
+filter should return; `qa-detail.mjs` reads the expected number from the toolbar.
+Both used to carry literals from a frozen dataset, and both went red the first time
+the client added a car through the dashboard — 25 failing checks, every one of them
+the harness being stale rather than the site being wrong. If you add a harness,
+compute what you expect; do not paste a number.
+
+**The focus ring needs 5px of clearance, and `qa/qa-focus-ring.mjs` enforces it.**
+`globals.css` draws it at `outline-offset: 3px` with a 2px stroke, *outside* the
+control's border box — so any ancestor with `overflow` other than `visible` clips
+it, and `overflow-y: auto` alone is enough because CSS forces the other axis to
+`auto` too. A mouse user never sees the problem, because the ring only appears for
+keyboard focus. The `/cars` sidebar lost both sides of all eight filter controls
+this way; the announcement bar lost the top of its phone link, because the link
+filled the 44px strip edge to edge and there was nothing above it but the top of
+the page. Both are fixed.
+
+**On the right, the padding box is not the boundary — the scrollbar is.** The first
+fix padded the `/cars` content 8px clear of the padding box, which fixed the left
+side and still left the ring painted 12px *underneath* the scrollbar. Windows
+Edge/Chrome draw an **overlay** scrollbar: `offsetWidth - clientWidth` is 0, so it
+occupies no layout space, yet it floats over the last 15px of the scrollport. The
+sidebar now also carries `scrollbar-gutter: stable`, which reserves the gutter so
+the bar stops overlaying content, and makes the column width identical whether a
+machine uses overlay or classic scrollbars. `-mx-4 px-4` then leaves 11px on both
+sides. **The rule is `gap = paddingRight − 5px`.**
+
+That harness has to **tab**, not read geometry up front: the ring only applies
+under `:focus-visible`, so an unfocused element reports `outline-style: none` and
+`outline-width: 0`. The first version of it read those, computed a reach of zero
+for every element, skipped them all and reported 16/16 while the bug was on screen.
+It now also **self-tests**: it reverts the `/cars` sidebar to the pre-fix style
+in-page and asserts that the check reports a cut. A suite of negative assertions
+has to demonstrate it can go red, or its green means nothing.
+
+**A related defect worth knowing about:** `transition-colors` in Tailwind v4
+includes `outline-color`, so the keyword input animates its ring from
+`currentColor` — near-white — to accent-500 over ~200ms. On the light sections that
+is no visible ring for the first fifth of a second of keyboard focus. Not fixed yet;
+it needs a decision about how to suppress the transition.
 
 It drives real Microsoft Edge through `playwright-core` (`channel: 'msedge'` — no browser
 download) and asserts the things a screenshot cannot show: that the rendered result count
@@ -689,6 +735,24 @@ the BMW), and never suggests a sold car.
 "sample listing" notice on every car. Moving rows into a database does not make them real:
 they are still the seeded samples with free-licence photography. Turn it off when real stock
 and real photographs are in — and not before.
+
+**The table is no longer purely seed data.** On 2026-09-24 the owner signed in to `/admin`
+and added `lc300` — a real 2022 Land Cruiser with a real photo, uploaded through the
+dashboard. So the dataset is now 14 seeded samples plus one genuine listing, and the
+"sample listing" notice is *mostly* accurate rather than wholly accurate. It stays on until
+the samples are gone.
+
+`qa/verify-seed.mjs` therefore reports **15 problems**, and neither group is a surprise:
+
+- **14 × `image`** — the seed source holds local `/vehicles/….jpg` paths while the table
+  holds Storage URLs. That is the expected end state of steps 4 and 5 in the Supabase setup
+  above, not drift. This was already true before `lc300` existed.
+- **1 × row count** — `15 rows in Supabase vs 14 in the source (not in the seed source:
+  lc300)`. Expected, and the harness now names the row rather than printing
+  `PASS … (MISMATCH)`, which is what it used to do.
+
+So the seed diff can no longer be read as "the table matches the fixture". It is a
+drift detector now, and the baseline it detects against is stale by design.
 
 ---
 

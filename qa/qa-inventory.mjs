@@ -11,12 +11,16 @@
  *     failure mode when a `backdrop-filter` ancestor captures `position: fixed`
  *
  * Usage:
- *   NODE_PATH=<workspace>/node_modules node qa/qa-inventory.mjs <baseUrl> [outDir]
+ *   node --env-file=.env.local qa/qa-inventory.mjs <baseUrl> [outDir]
+ *
+ * It needs the Supabase environment variables because it reads the live stock to
+ * work out how many cars each filter should return — see "Expected counts" below.
  */
 
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
+import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright-core";
 
 const BASE = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
@@ -30,23 +34,139 @@ const VIEWPORTS = [
   { name: "desktop-1440", width: 1440, height: 900 },
 ];
 
-const TOTAL = 14;
+/* --------------------------------------------------------------------------
+   Expected counts, derived from the live stock
+   --------------------------------------------------------------------------
+   These used to be literals — "14 cars total, 10 buyable, Toyota 3, SUV 5" —
+   derived by hand from a frozen dataset. That was fine while the dataset was
+   frozen, and it stopped being fine the moment the client added a car through
+   the dashboard: the harness went red on 24 checks and every one of them was
+   the harness being out of date, not the site being wrong. A test suite that
+   fails when someone uses the product is worse than no suite, because the next
+   real failure arrives buried in noise.
 
-/* Filter permutations and the number of cards each must render. Derived by
-   hand from src/data/vehicles.ts — if the dataset changes, these change. */
+   So the numbers are computed here from the same rows the site reads. The
+   predicates are written out rather than imported from `src/lib/facets.ts` on
+   purpose: re-importing the app's own filter engine would compare the app to
+   itself and pass no matter what it did. Two independent implementations
+   agreeing is the actual evidence.
+
+   `status=available` in the UI means "not sold" — it covers available and
+   reserved, and is the default. `status=all` includes sold cars.
+   -------------------------------------------------------------------------- */
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error(
+    "\n  Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.\n\n" +
+      "  This harness reads the live stock to derive how many cars each filter\n" +
+      "  should return, so it needs the same variables the site uses:\n\n" +
+      "      node --env-file=.env.local qa/qa-inventory.mjs http://localhost:3000\n",
+  );
+  process.exit(2);
+}
+
+const { data: ROWS, error: rowsError } = await createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+})
+  .from("vehicles")
+  .select("*");
+
+if (rowsError || !Array.isArray(ROWS)) {
+  console.error(`\n  Could not read stock: ${rowsError?.message ?? "unexpected response"}\n`);
+  process.exit(2);
+}
+if (ROWS.length === 0) {
+  console.error("\n  The vehicles table is empty — nothing to assert against.\n");
+  process.exit(2);
+}
+
+const buyable = ROWS.filter((row) => row.status !== "sold");
+const sold = ROWS.filter((row) => row.status === "sold");
+const pkr = (amount) => `PKR ${new Intl.NumberFormat("en-US").format(amount)}`;
+
+/* `Math.min(...[])` is `Infinity`, and `Infinity` formats as "PKR Infinity" —
+   the same trap `getPriceBounds` guards against. Fail loudly instead of
+   asserting on a nonsense string. */
+if (buyable.length === 0) {
+  console.error("\n  No buyable cars — the price bounds cannot be derived.\n");
+  process.exit(2);
+}
+
+/* A query guaranteed to return nothing, for the empty-state test.
+   Prefer a make whose cars are all sold — that is how an empty result actually
+   happens in this catalogue, and it exercises the make filter. If every make has
+   buyable stock, fall back to a price floor one rupee above the dearest car,
+   which cannot match by construction. Either way it is derived, so adding stock
+   cannot make the empty-state test assert the wrong thing. */
+const allSoldMake = [...new Set(ROWS.map((row) => row.make))].find(
+  (make) => !buyable.some((row) => row.make === make),
+);
+const emptyQuery = allSoldMake
+  ? `?make=${encodeURIComponent(allSoldMake)}`
+  : `?minPrice=${Math.max(...ROWS.map((row) => row.price)) + 1}`;
+
+const EXPECT = {
+  emptyQuery,
+  total: ROWS.length,
+  buyable: buyable.length,
+  sold: sold.length,
+  toyotaBuyable: buyable.filter((row) => row.make === "Toyota").length,
+  toyotaAll: ROWS.filter((row) => row.make === "Toyota").length,
+  suvBuyable: buyable.filter((row) => row.body_type === "SUV").length,
+  manualBuyable: buyable.filter((row) => row.transmission === "Manual").length,
+  year2019Buyable: buyable.filter((row) => row.year === 2019).length,
+  under4mBuyable: buyable.filter((row) => row.price <= 4_000_000).length,
+  range4to5mBuyable: buyable.filter((row) => row.price >= 4_000_000 && row.price <= 5_000_000)
+    .length,
+  cheapestBuyable: pkr(Math.min(...buyable.map((row) => row.price))),
+  dearestAll: pkr(Math.max(...ROWS.map((row) => row.price))),
+  lowestMileageAll: `${new Intl.NumberFormat("en-US").format(
+    Math.min(...ROWS.map((row) => row.mileage)),
+  )} km`,
+};
+
+const TOTAL = EXPECT.total;
+
+/** Escape a derived string so it can be used as a literal inside a RegExp. */
+const escapeRe = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const COUNT_CASES = [
-  { query: "", expect: 10, note: "default = available + reserved, sold hidden" },
-  { query: "?status=all", expect: 14, note: "every vehicle" },
-  { query: "?status=sold", expect: 4, note: "sold only" },
-  { query: "?make=Toyota", expect: 3, note: "Toyota, sold excluded" },
-  { query: "?make=Toyota&status=all", expect: 4, note: "Toyota incl. the sold Hilux" },
-  { query: "?make=BMW", expect: 0, note: "BMW only has a sold car -> empty state" },
-  { query: "?bodyType=SUV", expect: 5, note: "SUV body type" },
-  { query: "?transmission=Manual", expect: 1, note: "manual only" },
-  { query: "?year=2019", expect: 2, note: "exact year from the homepage quick-search" },
-  { query: "?maxPrice=4000000", expect: 1, note: "budget ceiling" },
-  { query: "?minPrice=5000000&maxPrice=4000000", expect: 2, note: "reversed range is swapped to 4m-5m, not zeroed" },
-  { query: "?make=Nonsense", expect: 10, note: "unknown make dropped, not passed through" },
+  { query: "", expect: EXPECT.buyable, note: "default = available + reserved, sold hidden" },
+  { query: "?status=all", expect: EXPECT.total, note: "every vehicle" },
+  { query: "?status=sold", expect: EXPECT.sold, note: "sold only" },
+  { query: "?make=Toyota", expect: EXPECT.toyotaBuyable, note: "Toyota, sold excluded" },
+  { query: "?make=Toyota&status=all", expect: EXPECT.toyotaAll, note: "Toyota incl. sold" },
+  {
+    /* Was hard-coded to BMW, on the assumption that its only car stays sold.
+       Derived instead: assert the empty state against a make that currently has
+       only sold stock, and fall back to a make that does have stock. */
+    query: allSoldMake
+      ? `?make=${encodeURIComponent(allSoldMake)}`
+      : `?make=${encodeURIComponent(ROWS[0].make)}`,
+    expect: allSoldMake
+      ? 0
+      : buyable.filter((row) => row.make === ROWS[0].make).length,
+    note: allSoldMake
+      ? `${allSoldMake} has only sold stock -> empty state`
+      : `${ROWS[0].make}, buyable only`,
+  },
+  { query: "?bodyType=SUV", expect: EXPECT.suvBuyable, note: "SUV body type" },
+  { query: "?transmission=Manual", expect: EXPECT.manualBuyable, note: "manual only" },
+  { query: "?year=2019", expect: EXPECT.year2019Buyable, note: "exact year from quick-search" },
+  { query: "?maxPrice=4000000", expect: EXPECT.under4mBuyable, note: "budget ceiling" },
+  {
+    query: "?minPrice=5000000&maxPrice=4000000",
+    expect: EXPECT.range4to5mBuyable,
+    note: "reversed range is swapped to 4m-5m, not zeroed",
+  },
+  {
+    query: "?make=Nonsense",
+    expect: EXPECT.buyable,
+    note: "unknown make dropped, not passed through",
+  },
 ];
 
 let failures = 0;
@@ -143,22 +263,26 @@ async function run() {
   /* innerText reflects `text-transform: uppercase` from the eyebrow style, so
      these have to be matched case-insensitively. */
   check(
-    /available now 10/i.test(stats),
-    "header count excludes the 4 sold cars",
+    new RegExp(`available now ${EXPECT.buyable}\\b`, "i").test(stats),
+    `header count excludes the ${EXPECT.sold} sold cars`,
     stats,
   );
   check(
-    /from pkr 3,650,000/i.test(stats),
+    new RegExp(escapeRe(EXPECT.cheapestBuyable), "i").test(stats),
     "header 'from' is the cheapest buyable price and carries its currency",
     stats,
   );
 
   /* ------------------------------------------------------------------ */
   console.log("\n== Empty state ==");
-  await page.goto(`${BASE}/cars?make=BMW`, { waitUntil: "load" });
+  await page.goto(`${BASE}/cars${EXPECT.emptyQuery}`, { waitUntil: "load" });
   const emptyHeading = page.getByRole("heading", { name: /no cars match/i });
-  check(await emptyHeading.isVisible(), "empty state heading is shown");
-  check((await page.locator("article").count()) === 0, "no vehicle cards rendered");
+  check(await emptyHeading.isVisible(), "empty state heading is shown", EXPECT.emptyQuery);
+  check(
+    (await page.locator("article").count()) === 0,
+    "no vehicle cards rendered",
+    EXPECT.emptyQuery,
+  );
   const clearAll = page.getByRole("link", { name: /clear all filters/i });
   check(await clearAll.isVisible(), "empty state offers a way out");
   await page.screenshot({ path: path.join(OUT, "state-empty.png"), fullPage: true });
@@ -168,13 +292,17 @@ async function run() {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/cars`, { waitUntil: "load" });
   const before = (await readCount(page)).shown;
-  check(before === 10, "unfiltered list starts at 10", `got ${before}`);
+  check(before === EXPECT.buyable, `unfiltered list starts at ${EXPECT.buyable}`, `got ${before}`);
 
   /* A pill is a plain link, so this is an ordinary navigation. */
   await page.getByRole("link", { name: "SUV", exact: true }).first().click();
   await page.waitForURL(/bodyType=SUV/);
   const afterPill = (await readCount(page)).shown;
-  check(afterPill === 5, "clicking a body-type pill filters the list", `${before} -> ${afterPill}`);
+  check(
+    afterPill === EXPECT.suvBuyable,
+    "clicking a body-type pill filters the list",
+    `${before} -> ${afterPill}, expected ${EXPECT.suvBuyable}`,
+  );
 
   await page.goBack();
   await page.waitForURL((url) => !url.search.includes("bodyType="));
@@ -191,7 +319,11 @@ async function run() {
   await sidebar.getByLabel("Make", { exact: true }).selectOption("Toyota");
   await page.waitForURL(/make=Toyota/);
   const afterSelect = (await readCount(page)).shown;
-  check(afterSelect === 3, "make select filters the list", `got ${afterSelect}`);
+  check(
+    afterSelect === EXPECT.toyotaBuyable,
+    "make select filters the list",
+    `got ${afterSelect}, expected ${EXPECT.toyotaBuyable}`,
+  );
 
   /* Changing make must clear a model that belongs to the old make. */
   await sidebar.getByLabel("Model", { exact: true }).selectOption("Corolla");
@@ -240,15 +372,27 @@ async function run() {
   console.log("\n== Sorting ==");
   await page.goto(`${BASE}/cars?sort=price-asc`, { waitUntil: "load" });
   const cheapest = await page.locator("article").first().innerText();
-  check(/3,650,000/.test(cheapest), "price ascending puts the cheapest first", cheapest.split("\n")[0]);
+  check(
+    cheapest.includes(EXPECT.cheapestBuyable),
+    "price ascending puts the cheapest first",
+    `${EXPECT.cheapestBuyable} — ${cheapest.split("\n")[0]}`,
+  );
 
   await page.goto(`${BASE}/cars?sort=price-desc&status=all`, { waitUntil: "load" });
   const dearest = await page.locator("article").first().innerText();
-  check(/24,500,000/.test(dearest), "price descending puts the dearest first", dearest.split("\n")[0]);
+  check(
+    dearest.includes(EXPECT.dearestAll),
+    "price descending puts the dearest first",
+    `${EXPECT.dearestAll} — ${dearest.split("\n")[0]}`,
+  );
 
   await page.goto(`${BASE}/cars?sort=mileage-asc&status=all`, { waitUntil: "load" });
   const lowestMileage = await page.locator("article").first().innerText();
-  check(/28,000 km/.test(lowestMileage), "lowest mileage sorts correctly", lowestMileage.split("\n")[0]);
+  check(
+    lowestMileage.includes(EXPECT.lowestMileageAll),
+    "lowest mileage sorts correctly",
+    `${EXPECT.lowestMileageAll} — ${lowestMileage.split("\n")[0]}`,
+  );
 
   /* ------------------------------------------------------------------ */
   console.log("\n== Responsive ==");
@@ -310,7 +454,11 @@ async function run() {
   await page.waitForTimeout(400);
   const footerButton = dialog.getByRole("button", { name: /show \d+ cars?/i });
   const footerText = await footerButton.innerText();
-  check(/show 5 cars/i.test(footerText), "sheet footer count updates live", footerText);
+  check(
+    new RegExp(`show ${EXPECT.suvBuyable} cars?`, "i").test(footerText),
+    "sheet footer count updates live",
+    `${footerText} (expected ${EXPECT.suvBuyable})`,
+  );
 
   await footerButton.click();
   await dialog.waitFor({ state: "hidden" });

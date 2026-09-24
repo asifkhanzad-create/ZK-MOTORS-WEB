@@ -260,7 +260,5 @@ try {
   await browser.close();
 }
 
-console.log(
-  `\n${failures === 0 ? "All checks passed." : `${failures} of ${checks} check(s) FAILED.`}\n`,
-);
+console.log(`\n${checks - failures}/${checks} checks passed.\n`);
 process.exit(failures === 0 ? 0 : 1);

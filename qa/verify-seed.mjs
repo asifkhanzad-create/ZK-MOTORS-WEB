@@ -49,11 +49,29 @@ const fail = (label, detail) => {
 const pass = (label, detail = "") => console.log(`  PASS  ${label}${detail ? `  (${detail})` : ""}`);
 
 console.log(`\n== Row count ==`);
-pass(
-  `${rows.length} rows in Supabase vs ${local.length} in the source`,
-  rows.length === local.length ? "match" : "MISMATCH",
-);
-if (rows.length !== local.length) failures++;
+/* This used to print `PASS … (MISMATCH)` — the failure was counted, but the word
+   next to it said the opposite, so the one line you read first told you the
+   wrong thing. It also did not say *which* row differed, which is the only
+   useful part: the table can legitimately hold rows the seed source does not,
+   because the dashboard adds them. */
+if (rows.length === local.length) {
+  pass(`${rows.length} rows in Supabase vs ${local.length} in the source`);
+} else {
+  const sourceIds = new Set(local.map((vehicle) => vehicle.id));
+  const dbIds = new Set(rows.map((row) => row.id));
+  const addedInDb = [...dbIds].filter((id) => !sourceIds.has(id));
+  const missingFromDb = [...sourceIds].filter((id) => !dbIds.has(id));
+
+  fail(
+    `${rows.length} rows in Supabase vs ${local.length} in the source`,
+    [
+      addedInDb.length ? `not in the seed source: ${addedInDb.join(", ")}` : "",
+      missingFromDb.length ? `missing from Supabase: ${missingFromDb.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join("; ") || "count differs but the id sets match",
+  );
+}
 
 console.log(`\n== Every source vehicle is present and identical ==`);
 const byId = new Map(rows.map((r) => [r.id, r]));

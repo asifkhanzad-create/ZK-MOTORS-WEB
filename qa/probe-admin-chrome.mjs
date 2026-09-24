@@ -16,7 +16,9 @@ const browser = await chromium.launch({ channel: "msedge" });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 
 let failures = 0;
+let checks = 0;
 function check(ok, label, detail = "") {
+  checks += 1;
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}${detail ? `  (${detail})` : ""}`);
   if (!ok) failures += 1;
 }
@@ -75,9 +77,7 @@ check(
   login.title,
 );
 
-console.log(
-  `\n${failures === 0 ? "All checks passed." : `${failures} check(s) FAILED.`}\n`,
-);
+console.log(`\n${checks - failures}/${checks} checks passed.\n`);
 
 await browser.close();
 process.exit(failures === 0 ? 0 : 1);
